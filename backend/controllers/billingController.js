@@ -124,7 +124,7 @@ const getBills = async (req, res) => {
       total: bills.count,
       page: parseInt(page),
       pages: Math.ceil(bills.count / limit)
-    });                                                             
+    });
   } catch (error) {
     console.error('Get bills error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -416,10 +416,10 @@ const autoGenerateBills = async (req, res) => {
   try {
     const today = new Date();
     const whereClause = {
-      status: 'active',
-      next_billing_date: {
-        [Op.lte]: today
-      }
+        status: 'active',
+        next_billing_date: {
+          [Op.lte]: today
+        }
     };
     
     // Super admin can generate for all ISPs or filter by isp_id
@@ -454,7 +454,7 @@ const autoGenerateBills = async (req, res) => {
       const bill_number = await generateBillNumber(ispId);
 
       const billAmount = parseFloat(customer.package.price);
-      
+
       const bill = await Bill.create({
         bill_number,
         customer_id: customer.id,
@@ -627,7 +627,7 @@ const updateBill = async (req, res) => {
         whereClause.isp_id = ispId;
       }
     }
-    
+
     const bill = await Bill.findOne({
       where: whereClause
     });
@@ -674,7 +674,7 @@ const updateBillStatus = async (req, res) => {
         whereClause.isp_id = ispId;
       }
     }
-    
+
     const bill = await Bill.findOne({
       where: whereClause
     });

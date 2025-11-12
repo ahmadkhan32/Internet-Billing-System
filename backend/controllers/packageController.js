@@ -98,7 +98,7 @@ const getPackages = async (req, res) => {
 // @access  Private
 const getPackage = async (req, res) => {
   try {
-    const package = await Package.findByPk(req.params.id, {
+    const pkg = await Package.findByPk(req.params.id, {
       include: [
         {
           model: ISP,
@@ -115,16 +115,16 @@ const getPackage = async (req, res) => {
       ]
     });
 
-    if (!package) {
+    if (!pkg) {
       return res.status(404).json({ message: 'Package not found' });
     }
 
     // Check access
-    if (req.user.role !== 'super_admin' && package.isp_id !== req.user.isp_id) {
+    if (req.user.role !== 'super_admin' && pkg.isp_id !== req.user.isp_id) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    res.json({ success: true, package });
+    res.json({ success: true, package: pkg });
   } catch (error) {
     console.error('Error fetching package:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -165,7 +165,7 @@ const createPackage = async (req, res) => {
       return res.status(400).json({ message: 'Price must be a valid positive number' });
     }
 
-    const package = await Package.create({
+    const pkg = await Package.create({
       name: name.trim(),
       speed: speed.trim(),
       price: priceValue,
@@ -184,7 +184,7 @@ const createPackage = async (req, res) => {
         req.user.id, 
         'CREATE_PACKAGE', 
         'Package', 
-        package.id, 
+        pkg.id, 
         null, 
         { name, speed, price: priceValue, data_limit },
         req.user.isp_id || ispId, 
@@ -196,7 +196,7 @@ const createPackage = async (req, res) => {
       // Don't fail the request if logging fails
     }
 
-    res.status(201).json({ success: true, package });
+    res.status(201).json({ success: true, package: pkg });
   } catch (error) {
     console.error('Error creating package:', error);
     
@@ -238,14 +238,14 @@ const updatePackage = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const package = await Package.findByPk(req.params.id);
+    const pkg = await Package.findByPk(req.params.id);
 
-    if (!package) {
+    if (!pkg) {
       return res.status(404).json({ message: 'Package not found' });
     }
 
     // Check access
-    if (req.user.role !== 'super_admin' && package.isp_id !== req.user.isp_id) {
+    if (req.user.role !== 'super_admin' && pkg.isp_id !== req.user.isp_id) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
@@ -269,9 +269,9 @@ const updatePackage = async (req, res) => {
     if (req.body.description !== undefined) updateData.description = req.body.description ? req.body.description.trim() : null;
     if (req.body.is_active !== undefined) updateData.is_active = req.body.is_active;
 
-    const oldValues = package.toJSON();
-    await package.update(updateData);
-    const newValues = package.toJSON();
+    const oldValues = pkg.toJSON();
+    await pkg.update(updateData);
+    const newValues = pkg.toJSON();
 
     // Log activity (handle error gracefully)
     try {
@@ -279,10 +279,10 @@ const updatePackage = async (req, res) => {
         req.user.id, 
         'UPDATE_PACKAGE', 
         'Package', 
-        package.id, 
+        pkg.id, 
         oldValues, 
         newValues, 
-        req.user.isp_id || package.isp_id, 
+        req.user.isp_id || pkg.isp_id, 
         req.ip, 
         req.get('user-agent')
       );
@@ -291,7 +291,7 @@ const updatePackage = async (req, res) => {
       // Don't fail the request if logging fails
     }
 
-    res.json({ success: true, package });
+    res.json({ success: true, package: pkg });
   } catch (error) {
     console.error('Error updating package:', error);
     
@@ -315,20 +315,20 @@ const updatePackage = async (req, res) => {
 // @access  Private (Admin, Super Admin)
 const deletePackage = async (req, res) => {
   try {
-    const package = await Package.findByPk(req.params.id);
+    const pkg = await Package.findByPk(req.params.id);
 
-    if (!package) {
+    if (!pkg) {
       return res.status(404).json({ message: 'Package not found' });
     }
 
     // Check access
-    if (req.user.role !== 'super_admin' && package.isp_id !== req.user.isp_id) {
+    if (req.user.role !== 'super_admin' && pkg.isp_id !== req.user.isp_id) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
     // Check if package has active customers
     const activeCustomers = await Customer.count({
-      where: { package_id: package.id, status: 'active' }
+      where: { package_id: pkg.id, status: 'active' }
     });
 
     if (activeCustomers > 0) {
@@ -337,9 +337,9 @@ const deletePackage = async (req, res) => {
       });
     }
 
-    await createActivityLog(req.user.id, 'DELETE_PACKAGE', 'Package', package.id, package.toJSON(), null, req.user.isp_id, req.ip, req.get('user-agent'));
+    await createActivityLog(req.user.id, 'DELETE_PACKAGE', 'Package', pkg.id, pkg.toJSON(), null, req.user.isp_id, req.ip, req.get('user-agent'));
 
-    await package.destroy();
+    await pkg.destroy();
 
     res.json({ success: true, message: 'Package deleted successfully' });
   } catch (error) {

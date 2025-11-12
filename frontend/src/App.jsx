@@ -195,7 +195,7 @@ function App() {
           <Route
             path="/payments/new"
             element={
-              <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.ACCOUNT_MANAGER]}>
+              <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.ACCOUNT_MANAGER, ROLES.RECOVERY_OFFICER]}>
                 <Layout>
                   <PaymentForm />
                 </Layout>

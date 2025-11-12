@@ -198,8 +198,8 @@ const PaymentModalWithStripe = ({ bill, onClose, onSuccess }) => {
           return;
         }
 
-        try {
-          const cardElement = elements.getElement(CardElement);
+    try {
+      const cardElement = elements.getElement(CardElement);
           if (!cardElement) {
             alert('Card element not found. Please try again.');
             setProcessing(false);
@@ -207,21 +207,21 @@ const PaymentModalWithStripe = ({ bill, onClose, onSuccess }) => {
           }
 
           const { error, paymentMethod: stripePaymentMethod } = await stripe.createPaymentMethod({
-            type: 'card',
-            card: cardElement,
-          });
+        type: 'card',
+        card: cardElement,
+      });
 
-          if (error) {
-            alert(error.message);
-            setProcessing(false);
-            return;
-          }
+      if (error) {
+        alert(error.message);
+        setProcessing(false);
+        return;
+      }
 
           response = await apiClient.post('/payments/online', {
-            bill_id: bill.id,
+        bill_id: bill.id,
             payment_method_id: stripePaymentMethod.id,
-            amount: parseFloat(bill.total_amount || bill.amount)
-          });
+        amount: parseFloat(bill.total_amount || bill.amount)
+      });
         } catch (stripeError) {
           alert('Stripe payment error. Please use another payment method.');
           setProcessing(false);
@@ -295,10 +295,10 @@ const PaymentModalWithStripe = ({ bill, onClose, onSuccess }) => {
 
           {(paymentMethod === 'card' || paymentMethod === 'stripe') && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Card Details</label>
-              <div className="border border-gray-300 rounded-lg p-3">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Card Details</label>
+            <div className="border border-gray-300 rounded-lg p-3">
                 {stripePromise && stripe && elements ? (
-                  <CardElement />
+              <CardElement />
                 ) : (
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                     <p className="text-yellow-800 text-sm">
@@ -306,8 +306,8 @@ const PaymentModalWithStripe = ({ bill, onClose, onSuccess }) => {
                     </p>
                   </div>
                 )}
-              </div>
             </div>
+          </div>
           )}
 
           <div>

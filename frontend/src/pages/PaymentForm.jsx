@@ -2,17 +2,22 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import apiClient from '../api/apiClient';
 import { formatCurrency } from '../utils/helpers';
-import { PAYMENT_METHOD_LABELS } from '../utils/constants';
+import { PAYMENT_METHOD_LABELS, ROLES } from '../utils/constants';
+import { useAuth } from '../context/AuthContext';
 
 const PaymentForm = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const customerIdFromUrl = searchParams.get('customer_id');
+  const { user } = useAuth();
 
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState([]);
   const [bills, setBills] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  
+  // Check if user is Recovery Officer - they can recover payments for ALL bills (paid and unpaid)
+  const isRecoveryOfficer = user?.role === ROLES.RECOVERY_OFFICER;
   const [formData, setFormData] = useState({
     customer_id: customerIdFromUrl || '',
     bill_id: '',
@@ -59,21 +64,31 @@ const PaymentForm = () => {
       
       console.log('Fetched bills for customer:', response.data);
       
-      // Filter bills that are not fully paid (pending, partial, overdue)
-      // Also check if remaining amount > 0
-      const unpaidBills = (response.data.bills || []).filter(bill => {
-        const billAmount = parseFloat(bill.total_amount || bill.amount || 0);
-        const paidAmount = parseFloat(bill.paid_amount || 0);
-        const remainingAmount = billAmount - paidAmount;
-        
-        // Include bills that are not paid/cancelled AND have remaining balance
-        return bill.status !== 'paid' && 
-               bill.status !== 'cancelled' && 
-               remainingAmount > 0;
-      });
+      let filteredBills = [];
       
-      console.log('Unpaid bills:', unpaidBills);
-      setBills(unpaidBills);
+      if (isRecoveryOfficer) {
+        // Recovery Officer can recover payments for ALL bills (paid, unpaid, overdue, before due)
+        // Only exclude cancelled bills
+        filteredBills = (response.data.bills || []).filter(bill => 
+          bill.status !== 'cancelled'
+        );
+        console.log('Recovery Officer - All bills (including paid):', filteredBills);
+      } else {
+        // For other roles, only show unpaid bills (pending, partial, overdue)
+        filteredBills = (response.data.bills || []).filter(bill => {
+          const billAmount = parseFloat(bill.total_amount || bill.amount || 0);
+          const paidAmount = parseFloat(bill.paid_amount || 0);
+          const remainingAmount = billAmount - paidAmount;
+          
+          // Include bills that are not paid/cancelled AND have remaining balance
+          return bill.status !== 'paid' && 
+                 bill.status !== 'cancelled' && 
+                 remainingAmount > 0;
+        });
+        console.log('Other roles - Unpaid bills only:', filteredBills);
+      }
+      
+      setBills(filteredBills);
     } catch (error) {
       console.error('Error fetching bills:', error);
       console.error('Error details:', error.response?.data);
@@ -139,15 +154,23 @@ const PaymentForm = () => {
       newErrors.transaction_id = 'Transaction ID is required for this payment method';
     }
 
-    // Validate amount doesn't exceed remaining balance
+    // Validate amount doesn't exceed remaining balance (unless Recovery Officer recovering a paid bill)
     if (formData.bill_id && selectedBill) {
       const billAmount = parseFloat(selectedBill.total_amount || selectedBill.amount || 0);
       const paidAmount = parseFloat(selectedBill.paid_amount || 0);
       const remainingAmount = billAmount - paidAmount;
       const enteredAmount = parseFloat(formData.amount) || 0;
       
-      if (enteredAmount > remainingAmount) {
+      // Recovery Officer can record payments even for fully paid bills (for recovery purposes)
+      // For other roles, amount cannot exceed remaining balance
+      if (!isRecoveryOfficer && enteredAmount > remainingAmount) {
         newErrors.amount = `Amount cannot exceed remaining balance of ${formatCurrency(remainingAmount)}`;
+      } else if (isRecoveryOfficer && selectedBill.status === 'paid' && remainingAmount === 0) {
+        // Recovery Officer can add additional payments to paid bills (e.g., late fees, adjustments)
+        // No validation needed - they can enter any amount
+      } else if (isRecoveryOfficer && enteredAmount > remainingAmount && remainingAmount > 0) {
+        // Recovery Officer can exceed remaining balance (for adjustments, fees, etc.)
+        // Just show a warning, don't block
       }
     }
 
@@ -158,9 +181,13 @@ const PaymentForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Prevent submission if no bills available
+    // Prevent submission if no bills available (unless Recovery Officer)
     if (bills.length === 0 && formData.customer_id) {
-      alert('No unpaid bills found for this customer. Please create a bill first.');
+      if (isRecoveryOfficer) {
+        alert('No bills found for this customer. Please create a bill first or select a different customer.');
+      } else {
+        alert('No unpaid bills found for this customer. Please create a bill first.');
+      }
       return;
     }
 
@@ -283,8 +310,13 @@ const PaymentForm = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Bill <span className="text-red-500">*</span>
+                {isRecoveryOfficer && (
+                  <span className="ml-2 text-xs text-blue-600 font-normal">
+                    (Recovery Officer: Can recover payments for all bills - paid, unpaid, overdue, or before due)
+                  </span>
+                )}
               </label>
-              {bills.length === 0 && formData.customer_id && (
+              {bills.length === 0 && formData.customer_id && !isRecoveryOfficer && (
                 <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <p className="text-sm text-yellow-800 mb-2">
                     <strong>No unpaid bills found for this customer.</strong>
@@ -298,6 +330,13 @@ const PaymentForm = () => {
                   >
                     Create New Bill →
                   </Link>
+                </div>
+              )}
+              {bills.length === 0 && formData.customer_id && isRecoveryOfficer && (
+                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <strong>No bills found for this customer.</strong> Please create a bill first or select a different customer.
+                  </p>
                 </div>
               )}
               <select
@@ -314,20 +353,24 @@ const PaymentForm = () => {
                   {!formData.customer_id 
                     ? 'Select customer first' 
                     : bills.length === 0 
-                    ? 'No unpaid bills found for this customer' 
+                    ? (isRecoveryOfficer ? 'No bills found for this customer' : 'No unpaid bills found for this customer')
                     : 'Select Bill'}
                 </option>
                 {bills.map((bill) => {
                   const billAmount = parseFloat(bill.total_amount || bill.amount || 0);
                   const paidAmount = parseFloat(bill.paid_amount || 0);
                   const remainingAmount = billAmount - paidAmount;
+                  const isOverdue = new Date(bill.due_date) < new Date() && bill.status !== 'paid';
+                  const isBeforeDue = new Date(bill.due_date) >= new Date() && bill.status !== 'paid';
                   
                   return (
                     <option key={bill.id} value={bill.id}>
                       {bill.bill_number} - {formatCurrency(billAmount)} 
-                      {paidAmount > 0 && ` (Paid: ${formatCurrency(paidAmount)}, Remaining: ${formatCurrency(remainingAmount)})`}
-                      {paidAmount === 0 && ` (Due: ${new Date(bill.due_date).toLocaleDateString()})`}
+                      {bill.status === 'paid' && ' [PAID]'}
+                      {paidAmount > 0 && bill.status !== 'paid' && ` (Paid: ${formatCurrency(paidAmount)}, Remaining: ${formatCurrency(remainingAmount)})`}
+                      {paidAmount === 0 && bill.status !== 'paid' && ` (Due: ${new Date(bill.due_date).toLocaleDateString()})`}
                       {bill.status === 'overdue' && ' - OVERDUE'}
+                      {isBeforeDue && bill.status !== 'paid' && ' - BEFORE DUE'}
                     </option>
                   );
                 })}
@@ -335,7 +378,7 @@ const PaymentForm = () => {
               {errors.bill_id && (
                 <p className="text-red-500 text-sm mt-1">{errors.bill_id}</p>
               )}
-              {bills.length === 0 && formData.customer_id && !errors.bill_id && (
+              {bills.length === 0 && formData.customer_id && !errors.bill_id && !isRecoveryOfficer && (
                 <p className="text-yellow-600 text-sm mt-1">
                   ⚠️ No unpaid bills found. Please create a bill first.
                 </p>
@@ -399,16 +442,24 @@ const PaymentForm = () => {
                   </p>
                   {enteredAmount > 0 && (
                     <p className={`text-sm font-medium ${
-                      enteredAmount > remainingAmount ? 'text-red-600' : 
+                      enteredAmount > remainingAmount && !isRecoveryOfficer ? 'text-red-600' : 
+                      enteredAmount > remainingAmount && isRecoveryOfficer ? 'text-blue-600' :
                       enteredAmount === remainingAmount ? 'text-green-600' : 
                       'text-yellow-600'
                     }`}>
-                      {enteredAmount > remainingAmount 
+                      {enteredAmount > remainingAmount && isRecoveryOfficer
+                        ? `ℹ️ Recovery Officer: Amount exceeds remaining balance by ${formatCurrency(enteredAmount - remainingAmount)} (allowed for adjustments/fees)`
+                        : enteredAmount > remainingAmount && !isRecoveryOfficer
                         ? `⚠️ Amount exceeds remaining balance by ${formatCurrency(enteredAmount - remainingAmount)}`
                         : enteredAmount === remainingAmount
                         ? '✓ Full payment (will clear remaining balance)'
                         : `After payment, ${formatCurrency(remainingAmount - enteredAmount)} will remain`
                       }
+                    </p>
+                  )}
+                  {selectedBill && selectedBill.status === 'paid' && isRecoveryOfficer && (
+                    <p className="text-sm text-blue-600 mt-1">
+                      ℹ️ This bill is already paid. Recovery Officer can record additional payments (e.g., late fees, adjustments).
                     </p>
                   )}
                 </div>

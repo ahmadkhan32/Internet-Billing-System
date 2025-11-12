@@ -67,16 +67,16 @@ const getHighRiskCustomers = async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const highRiskCustomers = await aiAnalytics.getHighRiskCustomers(ispId, limit);
     
-    res.json({
-      success: true,
+      res.json({
+        success: true,
       customers: highRiskCustomers
-    });
+      });
   } catch (error) {
     console.error('Get high-risk customers error:', error);
-    res.status(500).json({ 
+      res.status(500).json({ 
       message: 'Server error', 
-      error: error.message 
-    });
+        error: error.message 
+      });
   }
 };
 
@@ -103,8 +103,8 @@ const getCustomerChurnRisk = async (req, res) => {
 
     const churnRisk = await aiAnalytics.calculateChurnRisk(customerId);
     
-    res.json({
-      success: true,
+      res.json({
+        success: true,
       customer: {
         id: customer.id,
         name: customer.name
@@ -113,10 +113,10 @@ const getCustomerChurnRisk = async (req, res) => {
     });
   } catch (error) {
     console.error('Get churn risk error:', error);
-    res.status(500).json({ 
+      res.status(500).json({ 
       message: 'Server error', 
-      error: error.message 
-    });
+        error: error.message 
+      });
   }
 };
 
@@ -144,7 +144,7 @@ const detectFraud = async (req, res) => {
       success: true,
       fraudDetection
     });
-  } catch (error) {
+      } catch (error) {
     console.error('Fraud detection error:', error);
     res.status(500).json({ 
       message: 'Server error', 
@@ -179,7 +179,7 @@ const getRevenueProjection = async (req, res) => {
       success: true,
       projection
     });
-  } catch (error) {
+      } catch (error) {
     console.error('Get revenue projection error:', error);
     res.status(500).json({ 
       message: 'Server error', 
@@ -311,7 +311,7 @@ const triggerBackup = async (req, res) => {
       message: 'Backup completed successfully',
       result
     });
-  } catch (error) {
+    } catch (error) {
     console.error('Backup error:', error);
     res.status(500).json({ 
       message: 'Server error', 

@@ -39,7 +39,7 @@ const Payments = () => {
   }
 
   // Only show "Record Payment" button for admins/staff, not customers
-  const canRecordPayment = user?.role && [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.ACCOUNT_MANAGER].includes(user.role);
+  const canRecordPayment = user?.role && [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.ACCOUNT_MANAGER, ROLES.RECOVERY_OFFICER].includes(user.role);
 
   return (
     <div className="p-6">
