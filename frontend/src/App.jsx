@@ -21,6 +21,7 @@ import Users from './pages/Users';
 import CustomerForm from './pages/CustomerForm';
 import CustomerDetail from './pages/CustomerDetail';
 import BillForm from './pages/BillForm';
+import BillDetail from './pages/BillDetail';
 import PaymentForm from './pages/PaymentForm';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import SaaSPackages from './pages/SaaSPackages';
@@ -131,6 +132,17 @@ function App() {
               <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.ACCOUNT_MANAGER]}>
                 <Layout>
                   <BillForm />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/bills/:id"
+            element={
+              <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.ACCOUNT_MANAGER, ROLES.CUSTOMER]}>
+                <Layout>
+                  <BillDetail />
                 </Layout>
               </ProtectedRoute>
             }
