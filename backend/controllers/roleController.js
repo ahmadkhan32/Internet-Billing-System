@@ -27,23 +27,31 @@ const getRoles = async (req, res) => {
     }
 
     // Build where clause with tenant isolation
-    const whereClause = {};
+    // System roles (business_id IS NULL) should be visible to everyone
+    // Business-specific roles are filtered by business_id
     
-    // Super Admin can see all roles (system roles + all business roles)
-    // Business Admin can only see roles for their business
+    let whereClause;
+    
     if (req.user.role !== 'super_admin') {
-      // Business Admin: only see roles for their business
-      whereClause.business_id = req.user.isp_id;
+      // Business Admin: see system roles + roles for their business
+      whereClause = {
+        [Op.or]: [
+          { business_id: null }, // System roles
+          { business_id: req.user.isp_id } // Business-specific roles
+        ]
+      };
     } else {
-      // Super Admin: can optionally filter by business_id
+      // Super Admin: can optionally filter by business_id, otherwise see all
       if (req.query.business_id) {
-        whereClause.business_id = parseInt(req.query.business_id);
+        whereClause = { business_id: parseInt(req.query.business_id) };
+      } else {
+        // Super Admin sees all roles (system + all business roles)
+        whereClause = undefined;
       }
-      // Otherwise, Super Admin sees all roles (no filter)
     }
 
     const roles = await Role.findAll({
-      where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
+      where: whereClause,
       include: [
         {
           model: Permission,

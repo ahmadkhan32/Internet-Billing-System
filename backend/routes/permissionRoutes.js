@@ -20,13 +20,28 @@ const permissionValidation = [
 ];
 
 router.use(authMiddleware);
-router.use(roleMiddleware('super_admin')); // Only Super Admin can manage permissions
 
-router.get('/', getPermissions);
-router.get('/:id', getPermission);
-router.post('/', permissionValidation, createPermission);
-router.put('/:id', permissionValidation, updatePermission);
-router.delete('/:id', deletePermission);
+// GET routes - allow Super Admin and Business Admin to view permissions
+router.get('/', (req, res, next) => {
+  if (req.user.role === 'super_admin' || req.user.role === 'admin') {
+    next();
+  } else {
+    res.status(403).json({ message: 'Access denied. Only Super Admin and Business Admin can view permissions.' });
+  }
+}, getPermissions);
+
+router.get('/:id', (req, res, next) => {
+  if (req.user.role === 'super_admin' || req.user.role === 'admin') {
+    next();
+  } else {
+    res.status(403).json({ message: 'Access denied. Only Super Admin and Business Admin can view permissions.' });
+  }
+}, getPermission);
+
+// POST, PUT, DELETE routes - only Super Admin can manage permissions
+router.post('/', roleMiddleware('super_admin'), permissionValidation, createPermission);
+router.put('/:id', roleMiddleware('super_admin'), permissionValidation, updatePermission);
+router.delete('/:id', roleMiddleware('super_admin'), deletePermission);
 
 module.exports = router;
 

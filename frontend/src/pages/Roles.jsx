@@ -112,10 +112,12 @@ const Roles = () => {
 
   // Group permissions by resource
   const groupedPermissions = permissions.reduce((acc, perm) => {
-    if (!acc[perm.resource]) {
-      acc[perm.resource] = [];
+    if (perm && perm.resource) {
+      if (!acc[perm.resource]) {
+        acc[perm.resource] = [];
+      }
+      acc[perm.resource].push(perm);
     }
-    acc[perm.resource].push(perm);
     return acc;
   }, {});
 
@@ -131,17 +133,50 @@ const Roles = () => {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-800">Roles & Permissions</h1>
-        <button
-          onClick={() => {
-            setEditingRole(null);
-            setFormData({ name: '', display_name: '', description: '', permission_ids: [] });
-            setShowModal(true);
-          }}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-        >
-          + Add Role
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              fetchRoles();
+              fetchPermissions();
+            }}
+            className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 flex items-center gap-2"
+            title="Refresh roles and permissions"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
+          </button>
+          <button
+            onClick={() => {
+              setEditingRole(null);
+              setFormData({ name: '', display_name: '', description: '', permission_ids: [] });
+              setShowModal(true);
+            }}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          >
+            + Add Role
+          </button>
+        </div>
       </div>
+
+      {roles.length === 0 && !loading && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
+          <div className="flex items-center">
+            <svg className="w-6 h-6 text-yellow-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+              <h3 className="text-lg font-semibold text-yellow-800">No Roles Found</h3>
+              <p className="text-yellow-700 mt-1">
+                {permissions.length === 0 
+                  ? 'Roles and permissions are being initialized. Please refresh the page in a few seconds.'
+                  : 'No roles have been created yet. Click "Add Role" to create your first role.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {roles.map((role) => (
@@ -275,7 +310,12 @@ const Roles = () => {
                     </div>
                   ))}
                   {Object.keys(groupedPermissions).length === 0 && (
-                    <p className="text-center text-gray-500 py-4">No permissions available</p>
+                    <div className="text-center py-4">
+                      <p className="text-gray-500 mb-2">No permissions available</p>
+                      <p className="text-xs text-gray-400">
+                        Permissions are being initialized. Please refresh the page.
+                      </p>
+                    </div>
                   )}
                 </div>
                 <div className="mt-2 flex gap-2">

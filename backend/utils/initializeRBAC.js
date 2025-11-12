@@ -171,10 +171,22 @@ const initializeRBAC = async () => {
     for (const roleData of defaultRoles) {
       const { permissions: permissionNames, ...roleFields } = roleData;
       
+      // Ensure system roles have business_id set to null
+      const roleDataToCreate = {
+        ...roleFields,
+        business_id: null // System roles are not tied to any business
+      };
+      
       const [role, roleCreated] = await Role.findOrCreate({
         where: { name: roleData.name },
-        defaults: roleFields
+        defaults: roleDataToCreate
       });
+      
+      // Update existing roles to ensure business_id is null for system roles
+      if (!roleCreated && role.business_id !== null && roleData.is_system_role) {
+        await role.update({ business_id: null });
+        console.log(`   🔄 Updated role ${roleData.display_name} to be system role`);
+      }
 
       if (roleCreated) {
         console.log(`   ✅ Created role: ${roleData.display_name}`);

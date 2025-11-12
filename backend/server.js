@@ -26,6 +26,7 @@ const permissionRoutes = require('./routes/permissionRoutes');
 const invoiceRoutes = require('./routes/invoiceRoutes');
 const automationRoutes = require('./routes/automationRoutes');
 const { initializeScheduler } = require('./utils/monthlyScheduler');
+const initializeRBAC = require('./utils/initializeRBAC');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -285,6 +286,14 @@ const startServer = async () => {
     console.log('   Recovery Officer: recovery@billing.com');
     console.log('   Customer: customer@billing.com');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+    // Initialize RBAC roles and permissions
+    try {
+      await initializeRBAC();
+    } catch (rbacError) {
+      console.error('❌ Error initializing RBAC:', rbacError.message);
+      console.log('⚠️  Continuing without RBAC initialization...');
+    }
 
     // Initialize monthly scheduler
     initializeScheduler();
