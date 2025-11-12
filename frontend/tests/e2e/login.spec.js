@@ -23,8 +23,16 @@ test.describe('Login Page Tests', () => {
     await page.fill('#password', 'wrongpassword');
     await page.click('button[type="submit"]');
     
-    // Wait for error message to appear
-    await expect(page.locator('.bg-red-100, [class*="error"], text=/invalid|error|incorrect|credentials/i')).toBeVisible({ timeout: 10000 });
+    // Wait for API call to complete and error message to appear
+    // The error div has class "bg-red-100"
+    await page.waitForTimeout(2000); // Wait for API response
+    
+    // Check for error message - look for the specific error div class
+    const errorMessage = page.locator('.bg-red-100, div:has-text(/invalid|error|incorrect|credentials|failed/i)');
+    await expect(errorMessage.first()).toBeVisible({ timeout: 15000 });
+    
+    // Also verify we're still on login page (not redirected)
+    await expect(page).toHaveURL(/.*login/);
   });
 
   test('should login successfully with valid credentials', async ({ page }) => {

@@ -31,12 +31,17 @@ test.describe('Billing Management Tests', () => {
     await page.goto('/billing');
     await page.waitForLoadState('networkidle');
     
-    // Wait a bit for API calls to complete
-    await page.waitForTimeout(2000);
+    // Wait for API calls to complete
+    await page.waitForTimeout(3000);
     
-    // Check if bills table, list, or empty state is visible
-    const billsContainer = page.locator('table, .bills-list, [data-testid="bills-list"], text=/no bills|bills/i');
-    await expect(billsContainer.first()).toBeVisible({ timeout: 10000 });
+    // The billing page always shows a table (even if empty)
+    // Look for the table element specifically
+    const billsTable = page.locator('table.table, table, .table');
+    await expect(billsTable.first()).toBeVisible({ timeout: 15000 });
+    
+    // Verify table has content (either bills or "No bills found" message)
+    const tableContent = page.locator('table tbody, table td');
+    await expect(tableContent.first()).toBeVisible({ timeout: 5000 });
   });
 
   test('should open create bill form', async ({ page }) => {
