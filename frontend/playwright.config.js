@@ -6,6 +6,10 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
+  timeout: 30000, // 30 seconds per test
+  expect: {
+    timeout: 10000, // 10 seconds for assertions
+  },
   reporter: [
     ['html', { outputFolder: 'tests/reports/playwright-report' }],
     ['list']
@@ -14,6 +18,8 @@ export default defineConfig({
     baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:3001',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    actionTimeout: 10000, // 10 seconds for actions
+    navigationTimeout: 30000, // 30 seconds for navigation
   },
   projects: [
     {
