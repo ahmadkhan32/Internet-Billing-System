@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { BusinessProvider } from './context/BusinessContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
@@ -21,6 +22,12 @@ import CustomerForm from './pages/CustomerForm';
 import CustomerDetail from './pages/CustomerDetail';
 import BillForm from './pages/BillForm';
 import PaymentForm from './pages/PaymentForm';
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
+import SaaSPackages from './pages/SaaSPackages';
+import ISPManagement from './pages/ISPManagement';
+import Roles from './pages/Roles';
+import ActivityLogs from './pages/ActivityLogs';
+import Invoices from './pages/Invoices';
 
 import { ROLES } from './utils/constants';
 
@@ -47,8 +54,9 @@ const Layout = ({ children }) => {
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Routes>
+      <BusinessProvider>
+        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <Routes>
           <Route path="/login" element={<Login />} />
           
           <Route
@@ -123,6 +131,17 @@ function App() {
               <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.ACCOUNT_MANAGER]}>
                 <Layout>
                   <BillForm />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/invoices"
+            element={
+              <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.ACCOUNT_MANAGER, ROLES.CUSTOMER]}>
+                <Layout>
+                  <Invoices />
                 </Layout>
               </ProtectedRoute>
             }
@@ -238,9 +257,65 @@ function App() {
             }
           />
           
+          <Route
+            path="/super-admin/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}>
+                <Layout>
+                  <SuperAdminDashboard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/super-admin/packages"
+            element={
+              <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}>
+                <Layout>
+                  <SaaSPackages />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/super-admin/isps"
+            element={
+              <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}>
+                <Layout>
+                  <ISPManagement />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/roles"
+            element={
+              <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN]}>
+                <Layout>
+                  <Roles />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/activity-logs"
+            element={
+              <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN]}>
+                <Layout>
+                  <ActivityLogs />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </Router>
+      </BusinessProvider>
     </AuthProvider>
   );
 }

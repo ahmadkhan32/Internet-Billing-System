@@ -19,6 +19,12 @@ const installationRoutes = require('./routes/installationRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const activityLogRoutes = require('./routes/activityLogRoutes');
 const ispRoutes = require('./routes/ispRoutes');
+const superAdminRoutes = require('./routes/superAdminRoutes');
+const saaSPackageRoutes = require('./routes/saaSPackageRoutes');
+const roleRoutes = require('./routes/roleRoutes');
+const permissionRoutes = require('./routes/permissionRoutes');
+const invoiceRoutes = require('./routes/invoiceRoutes');
+const automationRoutes = require('./routes/automationRoutes');
 const { initializeScheduler } = require('./utils/monthlyScheduler');
 
 const app = express();
@@ -60,6 +66,12 @@ app.use('/api/installations', installationRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/activity-logs', activityLogRoutes);
 app.use('/api/isps', ispRoutes);
+app.use('/api/super-admin', superAdminRoutes);
+app.use('/api/saas-packages', saaSPackageRoutes);
+app.use('/api/roles', roleRoutes);
+app.use('/api/permissions', permissionRoutes);
+app.use('/api/invoices', invoiceRoutes);
+app.use('/api/automation', automationRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

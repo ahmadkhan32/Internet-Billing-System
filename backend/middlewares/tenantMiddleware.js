@@ -23,9 +23,11 @@ const tenantMiddleware = async (req, res, next) => {
         const business = await ISP.findOne({ where: { business_id: requestedBusinessId } });
         if (business) {
           req.tenantId = business.id; // Use numeric ID for filtering
+          req.ispId = business.id; // Backward compatibility
           req.businessId = business.business_id; // Store VARCHAR business_id
         } else {
           req.tenantId = null;
+          req.ispId = null;
           req.businessId = null;
         }
       } else if (requestedISPId) {
@@ -33,13 +35,16 @@ const tenantMiddleware = async (req, res, next) => {
         const business = await ISP.findByPk(requestedISPId);
         if (business) {
           req.tenantId = business.id;
+          req.ispId = business.id; // Backward compatibility
           req.businessId = business.business_id;
         } else {
           req.tenantId = null;
+          req.ispId = null;
           req.businessId = null;
         }
       } else {
         req.tenantId = null;
+        req.ispId = null;
         req.businessId = null;
       }
       
@@ -50,6 +55,7 @@ const tenantMiddleware = async (req, res, next) => {
     // For non-Super Admin users, enforce business_id from their user record
     if (req.user && req.user.isp_id) {
       req.tenantId = req.user.isp_id;
+      req.ispId = req.user.isp_id; // Backward compatibility
       req.isSuperAdmin = false;
       
       // Verify business exists and is active
@@ -73,6 +79,7 @@ const tenantMiddleware = async (req, res, next) => {
     // Users without business_id (should only be Super Admin)
     if (req.user && !req.user.isp_id && req.user.role === 'super_admin') {
       req.tenantId = null;
+      req.ispId = null; // Backward compatibility
       req.isSuperAdmin = true;
       return next();
     }
