@@ -15,13 +15,14 @@ module.exports = {
   ],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
   reporters: [
-    'default',
-    ['jest-html-reporter', {
-      pageTitle: 'Backend Test Report',
-      outputPath: './tests/reports/backend-report.html',
-      includeFailureMsg: true,
-      includeSuiteFailure: true
-    }]
+    'default'
+    // Uncomment below if jest-html-reporter is installed
+    // ['jest-html-reporter', {
+    //   pageTitle: 'Backend Test Report',
+    //   outputPath: './tests/reports/backend-report.html',
+    //   includeFailureMsg: true,
+    //   includeSuiteFailure: true
+    // }]
   ],
   verbose: true,
   forceExit: true,

@@ -41,7 +41,7 @@ const getSaaSPackages = async (req, res) => {
 // @access  Private (Super Admin)
 const getSaaSPackage = async (req, res) => {
   try {
-    const package = await SaaSPackage.findByPk(req.params.id, {
+    const pkg = await SaaSPackage.findByPk(req.params.id, {
       include: [{
         model: ISP,
         as: 'isps',
@@ -50,11 +50,11 @@ const getSaaSPackage = async (req, res) => {
       }]
     });
 
-    if (!package) {
+    if (!pkg) {
       return res.status(404).json({ message: 'SaaS package not found' });
     }
 
-    res.json({ success: true, package });
+    res.json({ success: true, package: pkg });
   } catch (error) {
     console.error('Error fetching SaaS package:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -79,7 +79,7 @@ const createSaaSPackage = async (req, res) => {
       return res.status(400).json({ message: 'Package with this name already exists' });
     }
 
-    const package = await SaaSPackage.create({
+    const pkg = await SaaSPackage.create({
       name: name.trim(),
       description: description?.trim() || null,
       price: parseFloat(price),
@@ -96,7 +96,7 @@ const createSaaSPackage = async (req, res) => {
       req.user.id,
       'CREATE_SAAS_PACKAGE',
       'SaaSPackage',
-      package.id,
+      pkg.id,
       null,
       { name, price, duration },
       req.user.isp_id,
@@ -104,7 +104,7 @@ const createSaaSPackage = async (req, res) => {
       req.get('user-agent')
     );
 
-    res.status(201).json({ success: true, package });
+    res.status(201).json({ success: true, package: pkg });
   } catch (error) {
     console.error('Error creating SaaS package:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -121,21 +121,21 @@ const updateSaaSPackage = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const package = await SaaSPackage.findByPk(req.params.id);
+    const pkg = await SaaSPackage.findByPk(req.params.id);
 
-    if (!package) {
+    if (!pkg) {
       return res.status(404).json({ message: 'SaaS package not found' });
     }
 
-    const oldValues = package.toJSON();
-    await package.update(req.body);
-    const newValues = package.toJSON();
+    const oldValues = pkg.toJSON();
+    await pkg.update(req.body);
+    const newValues = pkg.toJSON();
 
     await createActivityLog(
       req.user.id,
       'UPDATE_SAAS_PACKAGE',
       'SaaSPackage',
-      package.id,
+      pkg.id,
       oldValues,
       newValues,
       req.user.isp_id,
@@ -143,7 +143,7 @@ const updateSaaSPackage = async (req, res) => {
       req.get('user-agent')
     );
 
-    res.json({ success: true, package });
+    res.json({ success: true, package: pkg });
   } catch (error) {
     console.error('Error updating SaaS package:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -155,15 +155,15 @@ const updateSaaSPackage = async (req, res) => {
 // @access  Private (Super Admin)
 const deleteSaaSPackage = async (req, res) => {
   try {
-    const package = await SaaSPackage.findByPk(req.params.id);
+    const pkg = await SaaSPackage.findByPk(req.params.id);
 
-    if (!package) {
+    if (!pkg) {
       return res.status(404).json({ message: 'SaaS package not found' });
     }
 
     // Check if any ISPs are using this package
     const ispsUsingPackage = await ISP.count({
-      where: { saas_package_id: package.id }
+      where: { saas_package_id: pkg.id }
     });
 
     if (ispsUsingPackage > 0) {
@@ -176,15 +176,15 @@ const deleteSaaSPackage = async (req, res) => {
       req.user.id,
       'DELETE_SAAS_PACKAGE',
       'SaaSPackage',
-      package.id,
-      package.toJSON(),
+      pkg.id,
+      pkg.toJSON(),
       null,
       req.user.isp_id,
       req.ip,
       req.get('user-agent')
     );
 
-    await package.destroy();
+    await pkg.destroy();
 
     res.json({ success: true, message: 'SaaS package deleted successfully' });
   } catch (error) {
