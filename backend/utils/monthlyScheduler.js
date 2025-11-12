@@ -60,14 +60,14 @@ const generateMonthlyBills = async () => {
         }
 
         // Calculate bill amount
-        const package = customer.package;
-        if (!package) {
+        const pkg = customer.package;
+        if (!pkg) {
           console.log(`⚠️  Customer ${customer.id} has no package assigned`);
           billsSkipped++;
           continue;
         }
 
-        const billAmount = parseFloat(package.price);
+        const billAmount = parseFloat(pkg.price);
         const dueDate = moment().add(7, 'days').toDate(); // 7 days from now
         const billingPeriodStart = moment().startOf('month').toDate();
         const billingPeriodEnd = moment().endOf('month').toDate();
