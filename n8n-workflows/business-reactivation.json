@@ -1,0 +1,72 @@
+{
+  "name": "Business Reactivation After Payment",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "business-reactivate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook - Business Reactivation",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "webhookId": "business-reactivate"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BACKEND_URL || 'http://localhost:8000' }}/api/automation/webhook/reactivate",
+        "options": {
+          "headers": {
+            "Content-Type": "application/json",
+            "X-API-Key": "={{ $env.N8N_API_KEY }}"
+          }
+        },
+        "body": {
+          "api_key": "={{ $env.N8N_API_KEY }}",
+          "business_id": "={{ $json.body.business_id }}",
+          "isp_id": "={{ $json.body.isp_id }}"
+        },
+        "sendBody": true,
+        "bodyContentType": "json"
+      },
+      "id": "reactivate-business",
+      "name": "Reactivate Business",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"message\": \"Business reactivated successfully\", \"data\": $json } }}"
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Business Reactivation": {
+      "main": [[{ "node": "Reactivate Business", "type": "main", "index": 0 }]]
+    },
+    "Reactivate Business": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-15T00:00:00.000Z",
+  "versionId": "1"
+}
+

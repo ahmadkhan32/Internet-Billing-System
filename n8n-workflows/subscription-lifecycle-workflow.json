@@ -1,0 +1,149 @@
+{
+  "name": "Subscription Lifecycle Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Daily at 8 AM",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BACKEND_URL || 'http://localhost:8000' }}/api/automation/webhook/check-expiry",
+        "options": {
+          "headers": {
+            "Content-Type": "application/json",
+            "X-API-Key": "={{ $env.N8N_API_KEY }}"
+          }
+        },
+        "body": {
+          "api_key": "={{ $env.N8N_API_KEY }}"
+        },
+        "sendBody": true,
+        "bodyContentType": "json"
+      },
+      "id": "check-expiry",
+      "name": "Check Expiring Subscriptions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.reminders_sent }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "if-reminders",
+      "name": "If Reminders Sent",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BACKEND_URL || 'http://localhost:8000' }}/api/automation/webhook/suspend-expired",
+        "options": {
+          "headers": {
+            "Content-Type": "application/json",
+            "X-API-Key": "={{ $env.N8N_API_KEY }}"
+          }
+        },
+        "body": {
+          "api_key": "={{ $env.N8N_API_KEY }}"
+        },
+        "sendBody": true,
+        "bodyContentType": "json"
+      },
+      "id": "suspend-expired",
+      "name": "Suspend Expired Businesses",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.suspended }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "if-suspended",
+      "name": "If Businesses Suspended",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 500]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "log-entry",
+              "name": "log",
+              "value": "={{ { \"timestamp\": new Date().toISOString(), \"action\": \"subscription_check\", \"reminders_sent\": $('Check Expiring Subscriptions').item.json.reminders_sent, \"suspended\": $json.suspended } }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "log-results",
+      "name": "Log Results",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [1050, 400]
+    }
+  ],
+  "connections": {
+    "Daily at 8 AM": {
+      "main": [[{ "node": "Check Expiring Subscriptions", "type": "main", "index": 0 }]]
+    },
+    "Check Expiring Subscriptions": {
+      "main": [[{ "node": "If Reminders Sent", "type": "main", "index": 0 }, { "node": "Suspend Expired Businesses", "type": "main", "index": 0 }]]
+    },
+    "Suspend Expired Businesses": {
+      "main": [[{ "node": "If Businesses Suspended", "type": "main", "index": 0 }]]
+    },
+    "If Businesses Suspended": {
+      "main": [[{ "node": "Log Results", "type": "main", "index": 0 }]]
+    },
+    "If Reminders Sent": {
+      "main": [[{ "node": "Log Results", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-15T00:00:00.000Z",
+  "versionId": "1"
+}
+
