@@ -124,7 +124,7 @@ const getBills = async (req, res) => {
       total: bills.count,
       page: parseInt(page),
       pages: Math.ceil(bills.count / limit)
-    });
+    });                                                             
   } catch (error) {
     console.error('Get bills error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -173,8 +173,15 @@ const getBill = async (req, res) => {
 
     // For customers, verify they own this bill
     if (req.user.role === 'customer') {
+      // Find customer record by email or phone (not by user.id)
       const customer = await Customer.findOne({ 
-        where: { email: req.user.email } 
+        where: { 
+          [Op.or]: [
+            { email: req.user.email },
+            { phone: req.user.email } // Some users use phone as email
+          ],
+          ...(req.user.isp_id ? { isp_id: req.user.isp_id } : {})
+        }
       });
       
       if (!customer || bill.customer_id !== customer.id) {

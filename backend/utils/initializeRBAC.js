@@ -72,6 +72,18 @@ const defaultPermissions = [
   
   // Activity Logs
   { name: 'view_activity_logs', display_name: 'View Activity Logs', resource: 'activity_logs', action: 'read' },
+  
+  // Marketing & Promotions
+  { name: 'view_promotions', display_name: 'View Promotions', resource: 'promotions', action: 'read' },
+  { name: 'create_promotions', display_name: 'Create Promotions', resource: 'promotions', action: 'create' },
+  { name: 'update_promotions', display_name: 'Update Promotions', resource: 'promotions', action: 'update' },
+  { name: 'delete_promotions', display_name: 'Delete Promotions', resource: 'promotions', action: 'delete' },
+  { name: 'manage_campaigns', display_name: 'Manage Campaigns', resource: 'campaigns', action: 'manage' },
+  
+  // Automation & AI
+  { name: 'view_automation', display_name: 'View Automation', resource: 'automation', action: 'read' },
+  { name: 'manage_automation', display_name: 'Manage Automation', resource: 'automation', action: 'manage' },
+  { name: 'view_ai_insights', display_name: 'View AI Insights', resource: 'ai_insights', action: 'read' },
 ];
 
 // Default roles with their permissions
@@ -138,6 +150,19 @@ const defaultRoles = [
     ]
   },
   {
+    name: 'marketing_officer',
+    display_name: 'Marketing / Promotion Officer',
+    description: 'Manages customer engagement, campaigns, and promotions',
+    is_system_role: true,
+    permissions: [
+      'view_customers',
+      'view_promotions', 'create_promotions', 'update_promotions', 'delete_promotions',
+      'manage_campaigns',
+      'view_notifications', 'create_notifications',
+      'view_reports'
+    ]
+  },
+  {
     name: 'customer',
     display_name: 'Customer',
     description: 'End-user with access to personal portal',
@@ -145,7 +170,8 @@ const defaultRoles = [
     permissions: [
       'view_bills',
       'view_payments',
-      'view_notifications'
+      'view_notifications',
+      'view_promotions'
     ]
   }
 ];

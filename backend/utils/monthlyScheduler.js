@@ -439,7 +439,31 @@ const initializeScheduler = () => {
     timezone: 'UTC'
   });
 
-  console.log('✅ Monthly scheduler initialized');
+  // Auto-suspend customers with overdue bills daily at 11:00 AM
+  cron.schedule('0 11 * * *', async () => {
+    console.log('📅 Scheduled: Auto-suspend customers');
+    const autoSuspension = require('./autoSuspension');
+    await autoSuspension.autoSuspendCustomers({ gracePeriodDays: 7 });
+  }, {
+    scheduled: true,
+    timezone: 'UTC'
+  });
+
+  // Auto backup daily at 2:00 AM
+  cron.schedule('0 2 * * *', async () => {
+    console.log('📅 Scheduled: Auto backup');
+    const autoBackup = require('./autoBackup');
+    try {
+      await autoBackup.fullBackup();
+    } catch (error) {
+      console.error('Error in scheduled backup:', error);
+    }
+  }, {
+    scheduled: true,
+    timezone: 'UTC'
+  });
+
+  console.log('✅ Monthly scheduler initialized with automation features');
 };
 
 module.exports = {

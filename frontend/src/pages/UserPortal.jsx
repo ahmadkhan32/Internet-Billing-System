@@ -5,9 +5,157 @@ import moment from 'moment';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 
-const PaymentModal = ({ bill, onClose, onSuccess }) => {
+// Only initialize Stripe if publishable key is configured
+const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+const stripePromise = stripeKey && stripeKey.trim() !== '' 
+  ? loadStripe(stripeKey) 
+  : null;
+
+// PaymentModal without Stripe (for when Stripe is not configured)
+const PaymentModalWithoutStripe = ({ bill, onClose, onSuccess }) => {
+  const [processing, setProcessing] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [transactionId, setTransactionId] = useState('');
+  const [notes, setNotes] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setProcessing(true);
+
+    try {
+      let response;
+
+      if (paymentMethod === 'cash') {
+        response = await apiClient.post('/payments', {
+          bill_id: bill.id,
+          amount: parseFloat(bill.total_amount || bill.amount),
+          method: 'cash',
+          notes: notes || 'Cash payment recorded by customer'
+        });
+      } else if (paymentMethod === 'jazzcash' || paymentMethod === 'easypaisa') {
+        if (!transactionId.trim()) {
+          alert('Please enter transaction ID');
+          setProcessing(false);
+          return;
+        }
+        response = await apiClient.post('/payments', {
+          bill_id: bill.id,
+          amount: parseFloat(bill.total_amount || bill.amount),
+          method: paymentMethod,
+          transaction_id: transactionId,
+          notes: notes || `Payment via ${paymentMethod === 'jazzcash' ? 'JazzCash' : 'EasyPaisa'}`
+        });
+      } else {
+        // Bank transfer or other methods
+        response = await apiClient.post('/payments', {
+          bill_id: bill.id,
+          amount: parseFloat(bill.total_amount || bill.amount),
+          method: paymentMethod,
+          transaction_id: transactionId || undefined,
+          notes: notes
+        });
+      }
+
+      if (response.data.success) {
+        alert('Payment recorded successfully!');
+        onSuccess();
+      }
+    } catch (error) {
+      console.error('Payment error:', error);
+      const errorMessage = error.response?.data?.message || 'Payment failed. Please try again.';
+      alert(errorMessage);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-2xl font-bold mb-4">Pay Bill</h2>
+        <p className="text-gray-600 mb-4">
+          Bill: {bill.bill_number} - Amount: {formatCurrency(bill.total_amount || bill.amount)}
+        </p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Payment Method <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            >
+              <option value="cash">Cash</option>
+              <option value="jazzcash">JazzCash</option>
+              <option value="easypaisa">EasyPaisa</option>
+              <option value="bank_transfer">Bank Transfer</option>
+            </select>
+          </div>
+
+          {(paymentMethod === 'jazzcash' || paymentMethod === 'easypaisa' || paymentMethod === 'bank_transfer') && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Transaction ID <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={transactionId}
+                onChange={(e) => setTransactionId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder={`Enter ${paymentMethod === 'jazzcash' ? 'JazzCash' : paymentMethod === 'easypaisa' ? 'EasyPaisa' : 'Bank'} transaction ID`}
+                required
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Notes (Optional)</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              rows="2"
+              placeholder="Additional payment notes..."
+            />
+          </div>
+
+          {paymentMethod === 'cash' && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <p className="text-sm text-yellow-800">
+                <strong>Note:</strong> Cash payments will be recorded in the system. Please ensure you have made the payment to the authorized representative.
+              </p>
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-4">
+            <button
+              type="submit"
+              disabled={processing}
+              className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {processing ? 'Processing...' : 'Submit Payment'}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// PaymentModal with Stripe support
+const PaymentModalWithStripe = ({ bill, onClose, onSuccess }) => {
   const stripe = useStripe();
   const elements = useElements();
+  
   const [processing, setProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [transactionId, setTransactionId] = useState('');
@@ -50,23 +198,35 @@ const PaymentModal = ({ bill, onClose, onSuccess }) => {
           return;
         }
 
-        const cardElement = elements.getElement(CardElement);
-        const { error, paymentMethod: stripePaymentMethod } = await stripe.createPaymentMethod({
-          type: 'card',
-          card: cardElement,
-        });
+        try {
+          const cardElement = elements.getElement(CardElement);
+          if (!cardElement) {
+            alert('Card element not found. Please try again.');
+            setProcessing(false);
+            return;
+          }
 
-        if (error) {
-          alert(error.message);
+          const { error, paymentMethod: stripePaymentMethod } = await stripe.createPaymentMethod({
+            type: 'card',
+            card: cardElement,
+          });
+
+          if (error) {
+            alert(error.message);
+            setProcessing(false);
+            return;
+          }
+
+          response = await apiClient.post('/payments/online', {
+            bill_id: bill.id,
+            payment_method_id: stripePaymentMethod.id,
+            amount: parseFloat(bill.total_amount || bill.amount)
+          });
+        } catch (stripeError) {
+          alert('Stripe payment error. Please use another payment method.');
           setProcessing(false);
           return;
         }
-
-        response = await apiClient.post('/payments/online', {
-          bill_id: bill.id,
-          payment_method_id: stripePaymentMethod.id,
-          amount: parseFloat(bill.total_amount || bill.amount)
-        });
       } else {
         // Bank transfer or other methods
         response = await apiClient.post('/payments', {
@@ -92,8 +252,8 @@ const PaymentModal = ({ bill, onClose, onSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-2xl font-bold mb-4">Pay Bill</h2>
         <p className="text-gray-600 mb-4">
           Bill: {bill.bill_number} - Amount: {formatCurrency(bill.total_amount || bill.amount)}
@@ -137,10 +297,14 @@ const PaymentModal = ({ bill, onClose, onSuccess }) => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Card Details</label>
               <div className="border border-gray-300 rounded-lg p-3">
-                {stripe && elements ? (
+                {stripePromise && stripe && elements ? (
                   <CardElement />
                 ) : (
-                  <p className="text-red-500 text-sm">Stripe is not configured. Please use another payment method.</p>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                    <p className="text-yellow-800 text-sm">
+                      <strong>Stripe is not configured.</strong> Please select another payment method (Cash, JazzCash, EasyPaisa, or Bank Transfer).
+                    </p>
+                  </div>
                 )}
               </div>
             </div>
@@ -168,8 +332,8 @@ const PaymentModal = ({ bill, onClose, onSuccess }) => {
           <div className="flex gap-2 pt-4">
             <button
               type="submit"
-              disabled={processing || (paymentMethod === 'card' && !stripe)}
-              className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              disabled={processing || ((paymentMethod === 'card' || paymentMethod === 'stripe') && (!stripePromise || !stripe || !elements))}
+              className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {processing ? 'Processing...' : 'Submit Payment'}
             </button>
@@ -187,11 +351,17 @@ const PaymentModal = ({ bill, onClose, onSuccess }) => {
   );
 };
 
-// Only initialize Stripe if publishable key is configured
-const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
-const stripePromise = stripeKey && stripeKey.trim() !== '' 
-  ? loadStripe(stripeKey) 
-  : null;
+// Main PaymentModal component - conditionally renders with or without Stripe
+const PaymentModal = ({ bill, onClose, onSuccess }) => {
+  if (stripePromise) {
+    return (
+      <Elements stripe={stripePromise}>
+        <PaymentModalWithStripe bill={bill} onClose={onClose} onSuccess={onSuccess} />
+      </Elements>
+    );
+  }
+  return <PaymentModalWithoutStripe bill={bill} onClose={onClose} onSuccess={onSuccess} />;
+};
 
 const UserPortal = () => {
   const [bills, setBills] = useState([]);
@@ -278,6 +448,23 @@ const UserPortal = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Show message if no customer data found (for non-customer users or customers without records)
+  if (!customer && bills.length === 0) {
+    return (
+      <div className="p-6">
+        <h1 className="text-3xl font-bold text-gray-800 mb-6">Customer Portal</h1>
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+          <h2 className="text-xl font-semibold text-yellow-800 mb-2">No Customer Data Found</h2>
+          <p className="text-yellow-700">
+            {bills.length === 0 
+              ? "You don't have any bills yet. Please contact your ISP administrator to set up your account."
+              : "Unable to load customer information. Please contact support if you believe this is an error."}
+          </p>
+        </div>
       </div>
     );
   }
@@ -500,18 +687,5 @@ const UserPortal = () => {
   );
 };
 
-const UserPortalWithStripe = () => {
-  // Only wrap with Elements if Stripe is configured
-  if (stripePromise) {
-    return (
-      <Elements stripe={stripePromise}>
-        <UserPortal />
-      </Elements>
-    );
-  }
-  // If Stripe not configured, render without Elements wrapper
-  return <UserPortal />;
-};
-
-export default UserPortalWithStripe;
+export default UserPortal;
 

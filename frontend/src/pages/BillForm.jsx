@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import apiClient from '../api/apiClient';
 import { formatCurrency } from '../utils/helpers';
 
 const BillForm = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
   const [searchParams] = useSearchParams();
   const customerId = searchParams.get('customer_id');
+  const isEditMode = !!id;
 
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState([]);
@@ -26,10 +28,12 @@ const BillForm = () => {
   useEffect(() => {
     fetchCustomers();
     fetchPackages();
-    if (customerId) {
+    if (isEditMode && id) {
+      fetchBill();
+    } else if (customerId) {
       fetchCustomerDetails(customerId);
     }
-  }, [customerId]);
+  }, [id, customerId, isEditMode]);
 
   const fetchCustomers = async () => {
     try {
@@ -49,6 +53,36 @@ const BillForm = () => {
     }
   };
 
+  const fetchBill = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get(`/bills/${id}`);
+      const bill = response.data.bill;
+      
+      // Set form data from bill
+      setFormData({
+        customer_id: bill.customer_id || '',
+        package_id: bill.package_id || '',
+        amount: bill.amount || bill.total_amount || '',
+        due_date: bill.due_date ? new Date(bill.due_date).toISOString().split('T')[0] : '',
+        billing_period_start: bill.billing_period_start ? new Date(bill.billing_period_start).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        billing_period_end: bill.billing_period_end ? new Date(bill.billing_period_end).toISOString().split('T')[0] : '',
+        notes: bill.notes || ''
+      });
+      
+      // Fetch customer details
+      if (bill.customer_id) {
+        await fetchCustomerDetails(bill.customer_id);
+      }
+    } catch (error) {
+      console.error('Error fetching bill:', error);
+      alert('Error loading bill details');
+      navigate('/billing');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchCustomerDetails = async (id) => {
     try {
       const response = await apiClient.get(`/customers/${id}`);
@@ -56,7 +90,7 @@ const BillForm = () => {
       setSelectedCustomer(customer);
       
       // Pre-fill package if customer has one
-      if (customer.package_id) {
+      if (customer.package_id && !formData.package_id) {
         setFormData(prev => ({ ...prev, package_id: customer.package_id }));
       }
     } catch (error) {
@@ -144,17 +178,25 @@ const BillForm = () => {
         billing_period_end: formData.billing_period_end || calculateEndDate(formData.billing_period_start, selectedCustomer?.billing_cycle || 1)
       };
 
-      const response = await apiClient.post('/bills', submitData);
-      
-      if (response.data.success) {
-        alert('Bill generated successfully! Invoice has been sent to customer portal.');
-        navigate('/billing');
+      let response;
+      if (isEditMode) {
+        response = await apiClient.put(`/bills/${id}`, submitData);
+        if (response.data.success) {
+          alert('Bill updated successfully!');
+          navigate(`/bills/${id}`);
+        }
+      } else {
+        response = await apiClient.post('/bills', submitData);
+        if (response.data.success) {
+          alert('Bill generated successfully! Invoice has been sent to customer portal.');
+          navigate('/billing');
+        }
       }
     } catch (error) {
-      console.error('Error creating bill:', error);
+      console.error(`Error ${isEditMode ? 'updating' : 'creating'} bill:`, error);
       console.error('Error response:', error.response?.data);
       
-      let errorMessage = 'Error creating bill';
+      let errorMessage = isEditMode ? 'Error updating bill' : 'Error creating bill';
       
       if (error.response?.data) {
         if (error.response.data.message) {
@@ -185,7 +227,7 @@ const BillForm = () => {
         >
           ← Back to Billing
         </button>
-        <h1 className="text-3xl font-bold text-gray-800">Generate Bill</h1>
+        <h1 className="text-3xl font-bold text-gray-800">{isEditMode ? 'Edit Bill' : 'Generate Bill'}</h1>
       </div>
 
       <div className="card max-w-3xl">
@@ -201,7 +243,7 @@ const BillForm = () => {
                 onChange={(e) => handleCustomerChange(e.target.value)}
                 className={`input ${errors.customer_id ? 'border-red-500' : ''}`}
                 required
-                disabled={!!customerId}
+                disabled={!!customerId || isEditMode}
               >
                 <option value="">Select a customer</option>
                 {customers.map((customer) => (
@@ -339,7 +381,7 @@ const BillForm = () => {
               disabled={loading}
               className="btn btn-primary flex-1"
             >
-              {loading ? 'Generating...' : 'Generate Bill & Send Invoice'}
+              {loading ? (isEditMode ? 'Updating...' : 'Generating...') : (isEditMode ? 'Update Bill' : 'Generate Bill & Send Invoice')}
             </button>
             <button
               type="button"

@@ -182,8 +182,21 @@ const createPayment = async (req, res) => {
     }
 
     // For customers, verify they own this bill
-    if (req.user.role === 'customer' && bill.customer_id !== req.user.id) {
-      return res.status(403).json({ message: 'Access denied - this bill does not belong to you' });
+    if (req.user.role === 'customer') {
+      // Find customer record by email or phone (not by user.id)
+      const customer = await Customer.findOne({
+        where: {
+          [Op.or]: [
+            { email: req.user.email },
+            { phone: req.user.email } // Some users use phone as email
+          ],
+          ...(req.user.isp_id ? { isp_id: req.user.isp_id } : {})
+        }
+      });
+
+      if (!customer || bill.customer_id !== customer.id) {
+        return res.status(403).json({ message: 'Access denied - this bill does not belong to you' });
+      }
     }
 
     // Use bill's ISP ID for customers, or user's ISP ID for staff
@@ -225,6 +238,18 @@ const createPayment = async (req, res) => {
       await bill.update({ status: 'partial', paid_amount: paidAmount });
     } else {
       await bill.update({ paid_amount: paidAmount });
+    }
+
+    // Auto-reactivate customer if suspended and all bills are now paid
+    try {
+      const autoSuspension = require('../utils/autoSuspension');
+      const reactivationResult = await autoSuspension.checkAndReactivateAfterPayment(bill.customer_id);
+      if (reactivationResult.success) {
+        console.log(`✅ Auto-reactivated customer ${bill.customer_id} after payment`);
+      }
+    } catch (error) {
+      console.error('Error in auto-reactivation:', error);
+      // Don't fail payment creation if reactivation fails
     }
 
     // Create payment notification
@@ -293,6 +318,23 @@ const processOnlinePayment = async (req, res) => {
 
     if (!bill) {
       return res.status(404).json({ message: 'Bill not found' });
+    }
+
+    // If user is authenticated and is a customer, verify they own this bill
+    if (req.user && req.user.role === 'customer') {
+      const customer = await Customer.findOne({
+        where: {
+          [Op.or]: [
+            { email: req.user.email },
+            { phone: req.user.email } // Some users use phone as email
+          ],
+          ...(req.user.isp_id ? { isp_id: req.user.isp_id } : {})
+        }
+      });
+
+      if (!customer || bill.customer_id !== customer.id) {
+        return res.status(403).json({ message: 'Access denied - this bill does not belong to you' });
+      }
     }
 
     // Initialize Stripe (if configured)

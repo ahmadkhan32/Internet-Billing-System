@@ -138,6 +138,28 @@ function App() {
           />
           
           <Route
+            path="/billing/:id"
+            element={
+              <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.ACCOUNT_MANAGER, ROLES.CUSTOMER]}>
+                <Layout>
+                  <BillDetail />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/billing/:id/edit"
+            element={
+              <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.ACCOUNT_MANAGER]}>
+                <Layout>
+                  <BillForm />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
             path="/bills/:id"
             element={
               <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.ACCOUNT_MANAGER, ROLES.CUSTOMER]}>
@@ -261,7 +283,7 @@ function App() {
           <Route
             path="/portal"
             element={
-              <ProtectedRoute allowedRoles={[ROLES.CUSTOMER]}>
+              <ProtectedRoute allowedRoles={[ROLES.CUSTOMER, ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.ACCOUNT_MANAGER]}>
                 <Layout>
                   <UserPortal />
                 </Layout>

@@ -6,6 +6,7 @@ export const ROLES = {
   ACCOUNT_MANAGER: 'account_manager',
   TECHNICAL_OFFICER: 'technical_officer',
   RECOVERY_OFFICER: 'recovery_officer',
+  MARKETING_OFFICER: 'marketing_officer',
   CUSTOMER: 'customer'
 };
 
@@ -15,6 +16,7 @@ export const ROLE_LABELS = {
   [ROLES.ACCOUNT_MANAGER]: 'Account Manager',
   [ROLES.TECHNICAL_OFFICER]: 'Technical Officer',
   [ROLES.RECOVERY_OFFICER]: 'Recovery Officer',
+  [ROLES.MARKETING_OFFICER]: 'Marketing / Promotion Officer',
   [ROLES.CUSTOMER]: 'Customer'
 };
 
@@ -26,6 +28,7 @@ export const ROLE_OPTIONS = [
   { value: ROLES.ACCOUNT_MANAGER, label: ROLE_LABELS[ROLES.ACCOUNT_MANAGER] },
   { value: ROLES.TECHNICAL_OFFICER, label: ROLE_LABELS[ROLES.TECHNICAL_OFFICER] },
   { value: ROLES.RECOVERY_OFFICER, label: ROLE_LABELS[ROLES.RECOVERY_OFFICER] },
+  { value: ROLES.MARKETING_OFFICER, label: ROLE_LABELS[ROLES.MARKETING_OFFICER] },
   { value: ROLES.CUSTOMER, label: ROLE_LABELS[ROLES.CUSTOMER] }
 ];
 
