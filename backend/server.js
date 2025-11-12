@@ -4,7 +4,7 @@ const path = require('path');
 require('dotenv').config();
 
 const { sequelize, testConnection } = require('./config/db');
-const { User, ISP, Customer, Package, Bill, Payment, Recovery, Installation, Notification, ActivityLog } = require('./models');
+const { User, ISP, Customer, Package, Bill, Payment, Recovery, Installation, Notification, ActivityLog, Role, Permission } = require('./models');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -143,6 +143,11 @@ const startServer = async () => {
           await Installation.sync({ alter: true, force: false });
           await Notification.sync({ alter: true, force: false });
           await ActivityLog.sync({ alter: true, force: false });
+          // Sync RBAC tables
+          await Permission.sync({ alter: true, force: false });
+          await Role.sync({ alter: true, force: false });
+          const RolePermission = require('./models/RolePermission');
+          await RolePermission.sync({ alter: true, force: false });
           console.log('✅ Database models synchronized (individual sync)');
           
           // Automatically fix packages table after sync
@@ -288,11 +293,22 @@ const startServer = async () => {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     // Initialize RBAC roles and permissions
+    console.log('🔐 Initializing RBAC system...');
     try {
+      // Ensure Role and Permission tables exist
+      await Role.sync({ alter: true, force: false });
+      await Permission.sync({ alter: true, force: false });
+      const RolePermission = require('./models/RolePermission');
+      await RolePermission.sync({ alter: true, force: false });
+      
+      // Initialize default roles and permissions
       await initializeRBAC();
+      console.log('✅ RBAC system initialized successfully');
     } catch (rbacError) {
       console.error('❌ Error initializing RBAC:', rbacError.message);
+      console.error('❌ RBAC Error Stack:', rbacError.stack);
       console.log('⚠️  Continuing without RBAC initialization...');
+      console.log('💡 You can manually initialize by calling POST /api/roles/initialize');
     }
 
     // Initialize monthly scheduler

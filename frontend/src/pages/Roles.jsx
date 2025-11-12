@@ -25,16 +25,20 @@ const Roles = () => {
   const fetchRoles = async () => {
     try {
       setLoading(true);
-      const businessId = getBusinessId();
-      const params = businessId && isSuperAdmin ? { business_id: businessId } : {};
-      const response = await apiClient.get('/roles', { params });
+      // For super admin, no filter needed - they see all roles
+      // For others, API automatically filters by their ISP
+      const response = await apiClient.get('/roles');
       setRoles(response.data.roles || []);
     } catch (error) {
       console.error('Error fetching roles:', error);
       const errorMessage = error.response?.data?.message || 
                            error.response?.data?.error || 
-                           'Error fetching roles. Please check if you are logged in as Super Admin or Business Admin.';
-      alert(errorMessage);
+                           'Error fetching roles. Please check if roles are initialized.';
+      if (error.response?.status === 500 && errorMessage.includes('table does not exist')) {
+        alert('Roles table not initialized. Please restart the backend server to initialize roles and permissions.');
+      } else {
+        alert(errorMessage);
+      }
       setRoles([]); // Set empty array on error
     } finally {
       setLoading(false);
@@ -54,17 +58,16 @@ const Roles = () => {
     e.preventDefault();
     try {
       const submitData = { ...formData };
-      // For Business Admin, automatically set business_id
-      if (!isSuperAdmin) {
-        const businessId = getBusinessId();
-        if (businessId) {
-          submitData.business_id = businessId;
-        }
-      }
+      // System roles should have business_id as null
+      // Custom roles can have business_id set (for ISP-specific roles)
+      // For now, we'll let the backend handle business_id based on user's ISP
+      // Only Super Admin can create system-wide roles (business_id: null)
       
       if (editingRole) {
         await apiClient.put(`/roles/${editingRole.id}`, submitData);
       } else {
+        // For new roles, don't set business_id - let backend handle it
+        // Super Admin can create system roles, others create ISP-specific roles
         await apiClient.post('/roles', submitData);
       }
       setShowModal(false);
@@ -135,6 +138,29 @@ const Roles = () => {
         <h1 className="text-3xl font-bold text-gray-800">Roles & Permissions</h1>
         <div className="flex gap-2">
           <button
+            onClick={async () => {
+              try {
+                // Try to initialize roles if they don't exist
+                const response = await apiClient.post('/roles/initialize');
+                if (response.data.success) {
+                  alert('Roles and permissions initialized successfully!');
+                }
+              } catch (error) {
+                console.error('Error initializing:', error);
+                // If endpoint doesn't exist, just refresh
+              }
+              fetchRoles();
+              fetchPermissions();
+            }}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center gap-2"
+            title="Initialize/Refresh roles and permissions"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Initialize/Refresh
+          </button>
+          <button
             onClick={() => {
               fetchRoles();
               fetchPermissions();
@@ -166,12 +192,12 @@ const Roles = () => {
             <svg className="w-6 h-6 text-yellow-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
-            <div>
+            <div className="flex-1">
               <h3 className="text-lg font-semibold text-yellow-800">No Roles Found</h3>
               <p className="text-yellow-700 mt-1">
                 {permissions.length === 0 
-                  ? 'Roles and permissions are being initialized. Please refresh the page in a few seconds.'
-                  : 'No roles have been created yet. Click "Add Role" to create your first role.'}
+                  ? 'Roles and permissions are not initialized. Click "Initialize/Refresh" button to initialize default roles and permissions.'
+                  : 'No roles have been created yet. Default system roles should be initialized automatically. Click "Initialize/Refresh" to initialize them, or click "Add Role" to create a custom role.'}
               </p>
             </div>
           </div>
@@ -203,18 +229,22 @@ const Roles = () => {
               <p className="text-sm font-semibold text-gray-700 mb-2">
                 Permissions ({role.permissions?.length || 0})
               </p>
-              <div className="flex flex-wrap gap-1">
-                {role.permissions?.slice(0, 5).map((perm) => (
-                  <span key={perm.id} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
-                    {perm.display_name}
-                  </span>
-                ))}
-                {role.permissions?.length > 5 && (
-                  <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                    +{role.permissions.length - 5} more
-                  </span>
-                )}
-              </div>
+              {role.permissions && role.permissions.length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {role.permissions.slice(0, 5).map((perm) => (
+                    <span key={perm.id} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                      {perm.display_name}
+                    </span>
+                  ))}
+                  {role.permissions.length > 5 && (
+                    <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                      +{role.permissions.length - 5} more
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 italic">No permissions assigned</p>
+              )}
             </div>
             <div className="flex gap-2">
               <button

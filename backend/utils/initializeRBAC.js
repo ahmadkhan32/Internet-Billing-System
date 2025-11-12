@@ -154,17 +154,23 @@ const initializeRBAC = async () => {
   try {
     console.log('🔐 Initializing RBAC system...');
 
-    // Create permissions
+    // Create or update permissions
     const createdPermissions = [];
     for (const permData of defaultPermissions) {
       const [permission, created] = await Permission.findOrCreate({
         where: { name: permData.name },
         defaults: permData
       });
-      createdPermissions.push(permission);
-      if (created) {
+      
+      // Update permission if it exists but data might have changed
+      if (!created) {
+        await permission.update(permData);
+        console.log(`   🔄 Updated permission: ${permData.name}`);
+      } else {
         console.log(`   ✅ Created permission: ${permData.name}`);
       }
+      
+      createdPermissions.push(permission);
     }
 
     // Create roles and assign permissions
@@ -187,16 +193,24 @@ const initializeRBAC = async () => {
         await role.update({ business_id: null });
         console.log(`   🔄 Updated role ${roleData.display_name} to be system role`);
       }
-
-      if (roleCreated) {
+      
+      // Update role fields if they exist (to keep descriptions current)
+      if (!roleCreated) {
+        await role.update({
+          display_name: roleData.display_name,
+          description: roleData.description,
+          is_system_role: roleData.is_system_role
+        });
+        console.log(`   🔄 Updated role: ${roleData.display_name}`);
+      } else {
         console.log(`   ✅ Created role: ${roleData.display_name}`);
       }
 
-      // Assign permissions
+      // Assign permissions (always update to ensure they're current)
       if (permissionNames.includes('*')) {
         // Super admin gets all permissions
         await role.setPermissions(createdPermissions.map(p => p.id));
-        console.log(`   ✅ Assigned all permissions to ${roleData.display_name}`);
+        console.log(`   ✅ Assigned all ${createdPermissions.length} permissions to ${roleData.display_name}`);
       } else {
         // Assign specific permissions
         const permissionsToAssign = createdPermissions.filter(p => 

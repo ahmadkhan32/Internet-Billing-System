@@ -22,6 +22,23 @@ const roleValidation = [
 ];
 
 router.use(authMiddleware);
+
+// Initialize endpoint (before other middleware to allow access)
+router.post('/initialize', async (req, res) => {
+  try {
+    // Only Super Admin can initialize
+    if (req.user.role !== 'super_admin') {
+      return res.status(403).json({ success: false, message: 'Only Super Admin can initialize roles and permissions' });
+    }
+    const initializeRBAC = require('../utils/initializeRBAC');
+    await initializeRBAC();
+    res.json({ success: true, message: 'Roles and permissions initialized successfully' });
+  } catch (error) {
+    console.error('Error initializing RBAC:', error);
+    res.status(500).json({ success: false, message: 'Error initializing roles and permissions', error: error.message });
+  }
+});
+
 router.use(tenantMiddleware); // Apply tenant isolation
 // Allow Super Admin and Business Admin (admin role) to manage roles
 router.use((req, res, next) => {
