@@ -14,16 +14,38 @@ const getApp = () => {
   if (!appInitialized) {
     try {
       console.log('🔄 Initializing Express app for serverless function...');
+      console.log('📦 Node version:', process.version);
+      console.log('📦 NODE_ENV:', process.env.NODE_ENV);
+      console.log('📦 VERCEL:', process.env.VERCEL);
       
       // Set Vercel environment before requiring server
       process.env.VERCEL = '1';
       
+      // Check if backend directory exists
+      const fs = require('fs');
+      const path = require('path');
+      const backendPath = path.join(__dirname, '../backend');
+      
+      if (!fs.existsSync(backendPath)) {
+        throw new Error(`Backend directory not found at: ${backendPath}`);
+      }
+      
+      console.log('📁 Backend path exists:', backendPath);
+      
       // Try to load the server
+      console.log('📥 Loading backend/server.js...');
       app = require('../backend/server');
+      console.log('✅ Server module loaded');
       
       // Verify app is valid
-      if (!app || typeof app !== 'function') {
-        throw new Error('Invalid Express app - app is not a function');
+      if (!app) {
+        throw new Error('App is null or undefined');
+      }
+      
+      if (typeof app !== 'function') {
+        console.error('⚠️  App type:', typeof app);
+        console.error('⚠️  App value:', app);
+        throw new Error(`Invalid Express app - expected function, got ${typeof app}`);
       }
       
       appInitialized = true;
@@ -32,7 +54,20 @@ const getApp = () => {
       console.error('❌ Failed to initialize Express app:', error);
       console.error('Error name:', error.name);
       console.error('Error message:', error.message);
+      console.error('Error code:', error.code);
       console.error('Error stack:', error.stack);
+      
+      // Check for common issues
+      if (error.code === 'MODULE_NOT_FOUND') {
+        console.error('💡 MODULE_NOT_FOUND - Check if:');
+        console.error('   1. All dependencies are installed (cd backend && npm install)');
+        console.error('   2. node_modules exists in backend directory');
+        console.error('   3. package.json has all required dependencies');
+      }
+      
+      if (error.message && error.message.includes('Cannot find module')) {
+        console.error('💡 Missing module detected - install dependencies');
+      }
       
       // Store error to prevent repeated attempts
       initializationError = error;
@@ -94,23 +129,32 @@ module.exports = async (req, res) => {
     console.error('Error stack:', error.stack);
     
     // Provide more detailed error information
+    // Always show error message in Vercel for debugging
+    const isDev = process.env.NODE_ENV === 'development' || 
+                  process.env.VERCEL_ENV === 'development' || 
+                  process.env.VERCEL_ENV === 'preview';
+    
     const errorDetails = {
       message: 'Fatal server error - failed to initialize application',
-      error: process.env.NODE_ENV === 'development' || process.env.VERCEL_ENV === 'development' 
-        ? error.message 
-        : undefined
+      error: error.message || 'Unknown error',
+      name: error.name || 'Error'
     };
     
     // Add more debugging info
-    if (process.env.NODE_ENV === 'development' || process.env.VERCEL_ENV === 'development') {
-      errorDetails.name = error.name;
+    if (isDev) {
       errorDetails.stack = error.stack;
+      errorDetails.code = error.code;
       errorDetails.tips = [
         'Check if all dependencies are installed (cd backend && npm install)',
         'Verify environment variables are set correctly',
         'Check Vercel function logs for more details',
-        'Ensure database connection details are correct'
+        'Ensure database connection details are correct',
+        'Check if backend/node_modules exists',
+        'Verify all required files are in the repository'
       ];
+    } else {
+      // Even in production, show basic error info for debugging
+      errorDetails.hint = 'Check Vercel function logs for detailed error information';
     }
     
     if (!res.headersSent) {
