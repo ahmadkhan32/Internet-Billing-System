@@ -1,4 +1,6 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+// Use environment variable if set, otherwise use relative path for same-domain deployment
+// This allows the frontend to work on the same Vercel domain as the backend
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 export const ROLES = {
   SUPER_ADMIN: 'super_admin',
