@@ -167,11 +167,32 @@ app.get('/api/health', async (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(err.status || 500).json({
-    message: err.message || 'Internal server error',
-    error: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  console.error('Express error handler:', err);
+  console.error('Error stack:', err.stack);
+  console.error('Request details:', {
+    method: req.method,
+    url: req.url,
+    path: req.path,
+    body: req.body
   });
+  
+  const isDev = process.env.NODE_ENV === 'development' || 
+                process.env.VERCEL_ENV === 'development' || 
+                process.env.VERCEL_ENV === 'preview' ||
+                process.env.VERCEL;
+  
+  const errorResponse = {
+    message: err.message || 'Internal server error',
+    error: isDev ? err.message : 'Internal server error',
+    name: err.name || 'Error'
+  };
+  
+  if (isDev) {
+    errorResponse.stack = err.stack;
+    errorResponse.code = err.code;
+  }
+  
+  res.status(err.status || 500).json(errorResponse);
 });
 
 // 404 handler

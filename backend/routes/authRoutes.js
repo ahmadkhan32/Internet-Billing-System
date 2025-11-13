@@ -17,9 +17,14 @@ const loginValidation = [
   body('password').notEmpty().withMessage('Password is required')
 ];
 
-router.post('/register', registerValidation, register);
-router.post('/login', loginValidation, login);
-router.get('/me', authMiddleware, getMe);
+// Error wrapper for async route handlers
+const asyncHandler = (fn) => (req, res, next) => {
+  Promise.resolve(fn(req, res, next)).catch(next);
+};
+
+router.post('/register', registerValidation, asyncHandler(register));
+router.post('/login', loginValidation, asyncHandler(login));
+router.get('/me', authMiddleware, asyncHandler(getMe));
 
 module.exports = router;
 

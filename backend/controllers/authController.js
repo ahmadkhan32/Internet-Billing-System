@@ -180,8 +180,17 @@ const login = async (req, res) => {
     console.error('Error details:', {
       name: error.name,
       message: error.message,
-      code: error.code
+      code: error.code,
+      errno: error.errno,
+      sqlState: error.sqlState,
+      sqlMessage: error.sqlMessage
     });
+    
+    // Always show error message in Vercel for debugging
+    const isDev = process.env.NODE_ENV === 'development' || 
+                  process.env.VERCEL_ENV === 'development' || 
+                  process.env.VERCEL_ENV === 'preview' ||
+                  process.env.VERCEL;
     
     // Provide more helpful error messages
     let errorMessage = 'Server error during login';
@@ -193,16 +202,31 @@ const login = async (req, res) => {
     } else if (error.name === 'SequelizeDatabaseError') {
       errorMessage = 'Database error. Please check your database configuration.';
       statusCode = 503;
+    } else if (error.name === 'SequelizeValidationError') {
+      errorMessage = 'Validation error: ' + (error.message || 'Invalid data');
+      statusCode = 400;
     } else if (error.message) {
       errorMessage = error.message;
     }
     
-    res.status(statusCode).json({ 
+    const errorResponse = {
       message: errorMessage,
-      error: process.env.NODE_ENV === 'development' || process.env.VERCEL_ENV === 'development' 
-        ? error.message 
-        : undefined
-    });
+      error: isDev ? error.message : errorMessage,
+      name: error.name || 'Error'
+    };
+    
+    // Add more details in development/Vercel
+    if (isDev) {
+      errorResponse.stack = error.stack;
+      errorResponse.code = error.code;
+      errorResponse.details = {
+        errno: error.errno,
+        sqlState: error.sqlState,
+        sqlMessage: error.sqlMessage
+      };
+    }
+    
+    res.status(statusCode).json(errorResponse);
   }
 };
 
