@@ -187,21 +187,21 @@ const login = async (req, res) => {
     let errorMessage = 'Server error during login';
     let statusCode = 500;
     
-    if (error.name === 'SequelizeConnectionError' || error.name === 'SequelizeDatabaseError') {
-      errorMessage = 'Database connection error. Please check your database configuration.';
+    if (error.name === 'SequelizeConnectionError' || error.name === 'SequelizeConnectionRefusedError') {
+      errorMessage = 'Database connection failed. Please check your database configuration.';
       statusCode = 503;
-    } else if (error.name === 'SequelizeValidationError') {
-      errorMessage = 'Validation error';
-      statusCode = 400;
-    } else if (error.message && error.message.includes('JWT')) {
-      errorMessage = 'Authentication configuration error. Please check JWT_SECRET.';
-      statusCode = 500;
+    } else if (error.name === 'SequelizeDatabaseError') {
+      errorMessage = 'Database error. Please check your database configuration.';
+      statusCode = 503;
+    } else if (error.message) {
+      errorMessage = error.message;
     }
     
     res.status(statusCode).json({ 
       message: errorMessage,
-      error: process.env.NODE_ENV === 'development' || process.env.VERCEL_ENV === 'development' ? error.message : undefined,
-      stack: process.env.NODE_ENV === 'development' || process.env.VERCEL_ENV === 'development' ? error.stack : undefined
+      error: process.env.NODE_ENV === 'development' || process.env.VERCEL_ENV === 'development' 
+        ? error.message 
+        : undefined
     });
   }
 };
