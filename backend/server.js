@@ -28,7 +28,6 @@ const automationRoutes = require('./routes/automationRoutes');
 const { initializeScheduler } = require('./utils/monthlyScheduler');
 const initializeRBAC = require('./utils/initializeRBAC');
 
-const app = express();
 const PORT = process.env.PORT || 8000;
 
 // Middleware
@@ -436,7 +435,10 @@ const startServer = async () => {
 
 // Only start server if not in serverless mode
 if (!isVercel) {
-  startServer();
+  startServer().catch(err => {
+    console.error('❌ Failed to start server:', err);
+    process.exit(1);
+  });
 } else {
   // In serverless mode, initialize database connection asynchronously
   // Don't block app export, but try to connect
