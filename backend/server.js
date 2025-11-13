@@ -36,14 +36,39 @@ const allowedOrigins = process.env.FRONTEND_URL
   ? [process.env.FRONTEND_URL] 
   : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'];
 
+// Add Vercel URL to allowed origins if in Vercel environment
+if (process.env.VERCEL_URL) {
+  allowedOrigins.push(`https://${process.env.VERCEL_URL}`);
+}
+if (process.env.VERCEL) {
+  // Allow all Vercel preview and production URLs
+  allowedOrigins.push(/^https:\/\/.*\.vercel\.app$/);
+}
+
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    
+    // Check if origin matches allowed origins
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (typeof allowed === 'string') {
+        return allowed === origin;
+      } else if (allowed instanceof RegExp) {
+        return allowed.test(origin);
+      }
+      return false;
+    });
+    
+    if (isAllowed) {
       callback(null, true);
     } else {
-      callback(null, true); // Allow all origins in development
+      // In development or Vercel, allow all origins
+      if (process.env.NODE_ENV !== 'production' || process.env.VERCEL) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
     }
   },
   credentials: true
@@ -93,6 +118,10 @@ app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
+// Export app for serverless functions (Vercel)
+// Only start server if not in serverless mode
+const isVercel = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+
 // Sync database and start server
 const startServer = async () => {
   try {
@@ -101,7 +130,8 @@ const startServer = async () => {
 
     // Sync database models (create tables if they don't exist)
     // In production, use migrations instead
-    if (process.env.NODE_ENV !== 'production') {
+    // Skip sync in Vercel serverless mode (tables should already exist)
+    if (process.env.NODE_ENV !== 'production' && !isVercel) {
       try {
         // Use sequelize.sync() which handles dependencies automatically
         // force: false = don't drop existing tables
@@ -306,31 +336,64 @@ const startServer = async () => {
       console.log('✅ RBAC system initialized successfully');
     } catch (rbacError) {
       console.error('❌ Error initializing RBAC:', rbacError.message);
-      console.error('❌ RBAC Error Stack:', rbacError.stack);
-      console.log('⚠️  Continuing without RBAC initialization...');
+      
+      // Check if it's the "Too many keys" error
+      if (rbacError.message && rbacError.message.includes('Too many keys')) {
+        console.error('\n🔧 Detected "Too many keys" error - this is a MySQL index limit issue.');
+        console.error('💡 Solution: Run the following command to fix the role_permissions table:');
+        console.error('   npm run fix:rbac');
+        console.error('   OR: cd backend && node utils/fixRolePermissionsTable.js');
+        console.error('\n⚠️  After running the fix, restart the server.');
+      } else {
+        console.error('❌ RBAC Error Stack:', rbacError.stack);
+      }
+      
+      console.log('\n⚠️  Continuing without RBAC initialization...');
       console.log('💡 You can manually initialize by calling POST /api/roles/initialize');
     }
 
-    // Initialize monthly scheduler
-    initializeScheduler();
+    // Initialize monthly scheduler (skip in serverless mode)
+    if (!isVercel) {
+      initializeScheduler();
+    }
 
-    // Start server
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-    });
+    // Start server only if not in serverless mode
+    if (!isVercel) {
+      app.listen(PORT, () => {
+        console.log(`🚀 Server running on port ${PORT}`);
+        console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+      });
+    } else {
+      console.log('🚀 Running in serverless mode (Vercel)');
+    }
   } catch (error) {
     console.error('❌ Failed to start server:', error);
-    process.exit(1);
+    if (!isVercel) {
+      process.exit(1);
+    }
   }
 };
 
-startServer();
+// Only start server if not in serverless mode
+if (!isVercel) {
+  startServer();
+} else {
+  // In serverless mode, just test connection and export app
+  // Database initialization will happen on first request
+  testConnection().catch(err => {
+    console.error('⚠️  Database connection warning (serverless):', err.message);
+  });
+}
 
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM signal received: closing HTTP server');
-  await sequelize.close();
-  process.exit(0);
-});
+// Graceful shutdown (only in traditional server mode)
+if (!isVercel) {
+  process.on('SIGTERM', async () => {
+    console.log('SIGTERM signal received: closing HTTP server');
+    await sequelize.close();
+    process.exit(0);
+  });
+}
+
+// Export app for serverless functions
+module.exports = app;
 

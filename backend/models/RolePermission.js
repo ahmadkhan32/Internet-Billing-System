@@ -28,10 +28,18 @@ const RolePermission = sequelize.define('RolePermission', {
 }, {
   tableName: 'role_permissions',
   timestamps: true,
+  // Simplified indexes - only keep the unique composite index
+  // MySQL has a limit of 64 indexes per table
+  // The composite index (role_id, permission_id) can be used for:
+  // - Queries on role_id alone (leftmost prefix)
+  // - Queries on both role_id and permission_id
+  // We remove individual indexes to avoid hitting the 64 key limit
   indexes: [
-    { fields: ['role_id'] },
-    { fields: ['permission_id'] },
-    { unique: true, fields: ['role_id', 'permission_id'] }
+    { 
+      unique: true, 
+      fields: ['role_id', 'permission_id'],
+      name: 'unique_role_permission'
+    }
   ]
 });
 
