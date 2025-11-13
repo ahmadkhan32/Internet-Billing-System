@@ -79,6 +79,28 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static files (for invoice downloads)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Database connection check middleware for serverless (before routes)
+if (process.env.VERCEL) {
+  app.use('/api', async (req, res, next) => {
+    // Skip health check
+    if (req.path === '/health') {
+      return next();
+    }
+    
+    // Check if database is connected
+    try {
+      await sequelize.authenticate();
+      next();
+    } catch (error) {
+      console.error('Database connection error in request:', error.message);
+      return res.status(503).json({
+        message: 'Database connection failed. Please check your database configuration and environment variables.',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  });
+}
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -100,8 +122,23 @@ app.use('/api/invoices', invoiceRoutes);
 app.use('/api/automation', automationRoutes);
 
 // Health check route
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Server is running' });
+app.get('/api/health', async (req, res) => {
+  try {
+    // Test database connection
+    await testConnection();
+    res.json({ 
+      status: 'OK', 
+      message: 'Server is running',
+      database: 'connected'
+    });
+  } catch (error) {
+    res.status(503).json({ 
+      status: 'ERROR', 
+      message: 'Server is running but database connection failed',
+      database: 'disconnected',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
 });
 
 // Error handling middleware

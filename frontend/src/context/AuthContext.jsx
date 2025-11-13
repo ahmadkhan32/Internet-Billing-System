@@ -69,25 +69,35 @@ export const AuthProvider = ({ children }) => {
       if (!error.response) {
         const networkError = error.userMessage || 
           'Cannot connect to server. Please ensure:\n' +
-          '1. Backend server is running (port 8000)\n' +
+          '1. Backend server is running\n' +
           '2. Backend URL is correct\n' +
           '3. No firewall is blocking the connection';
         
         return {
           success: false,
-          message: networkError,
+          message: String(networkError), // Ensure it's a string
           isNetworkError: true
         };
       }
       
-      const errorMessage = error.response?.data?.message || 
-                          error.response?.data?.error || 
-                          error.message || 
-                          'Login failed. Please check your credentials and try again.';
+      // Extract error message safely
+      let errorMessage = 'Login failed. Please check your credentials and try again.';
+      
+      if (error.response?.data) {
+        if (typeof error.response.data.message === 'string') {
+          errorMessage = error.response.data.message;
+        } else if (typeof error.response.data.error === 'string') {
+          errorMessage = error.response.data.error;
+        } else if (error.response.data.errors && Array.isArray(error.response.data.errors)) {
+          errorMessage = error.response.data.errors.map(e => e.msg || e.message || String(e)).join(', ');
+        }
+      } else if (error.message && typeof error.message === 'string') {
+        errorMessage = error.message;
+      }
       
       return {
         success: false,
-        message: errorMessage
+        message: String(errorMessage) // Ensure it's always a string
       };
     }
   };
