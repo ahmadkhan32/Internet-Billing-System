@@ -4,20 +4,37 @@
 const app = require('../backend/server');
 
 // Export as Vercel serverless function handler
-// Vercel will route /api/* requests to this function
-// The Express app already has /api prefix in routes, so the path matches correctly
-module.exports = (req, res) => {
-  // Add error handling wrapper for serverless functions
-  return app(req, res, (err) => {
-    if (err) {
-      console.error('Serverless function error:', err);
-      if (!res.headersSent) {
-        res.status(500).json({
-          message: 'Internal server error',
-          error: process.env.NODE_ENV === 'development' ? err.message : undefined
-        });
+// Vercel routes /api/* to this function, and the Express app handles /api/* routes
+module.exports = async (req, res) => {
+  try {
+    // Log request for debugging
+    console.log(`[${req.method}] ${req.url}`);
+    
+    // Handle the request with Express app
+    app(req, res, (err) => {
+      if (err) {
+        console.error('Serverless function error:', err);
+        console.error('Error stack:', err.stack);
+        
+        if (!res.headersSent) {
+          res.status(500).json({
+            message: 'Internal server error',
+            error: process.env.NODE_ENV === 'development' || process.env.VERCEL_ENV === 'development' ? err.message : undefined,
+            stack: process.env.NODE_ENV === 'development' || process.env.VERCEL_ENV === 'development' ? err.stack : undefined
+          });
+        }
       }
+    });
+  } catch (error) {
+    console.error('Fatal error in serverless function:', error);
+    console.error('Error stack:', error.stack);
+    
+    if (!res.headersSent) {
+      res.status(500).json({
+        message: 'Fatal server error',
+        error: process.env.NODE_ENV === 'development' || process.env.VERCEL_ENV === 'development' ? error.message : undefined
+      });
     }
-  });
+  }
 };
 

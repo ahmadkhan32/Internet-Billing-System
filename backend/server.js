@@ -80,6 +80,10 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Database connection check middleware for serverless (before routes)
+// Cache connection status to avoid checking on every request
+let dbConnectionStatus = { connected: false, lastCheck: 0, checking: false };
+const DB_CHECK_INTERVAL = 30000; // Check every 30 seconds
+
 if (process.env.VERCEL) {
   app.use('/api', async (req, res, next) => {
     // Skip health check
@@ -87,17 +91,44 @@ if (process.env.VERCEL) {
       return next();
     }
     
-    // Check if database is connected
-    try {
-      await sequelize.authenticate();
-      next();
-    } catch (error) {
-      console.error('Database connection error in request:', error.message);
+    const now = Date.now();
+    const needsCheck = !dbConnectionStatus.connected || (now - dbConnectionStatus.lastCheck) > DB_CHECK_INTERVAL;
+    
+    // Check if database is connected (with caching)
+    if (needsCheck && !dbConnectionStatus.checking) {
+      dbConnectionStatus.checking = true;
+      try {
+        await sequelize.authenticate();
+        dbConnectionStatus.connected = true;
+        dbConnectionStatus.lastCheck = now;
+        dbConnectionStatus.checking = false;
+      } catch (error) {
+        dbConnectionStatus.connected = false;
+        dbConnectionStatus.lastCheck = now;
+        dbConnectionStatus.checking = false;
+        console.error('Database connection error:', error.message);
+        
+        // Return detailed error
+        return res.status(503).json({
+          message: 'Database connection failed',
+          details: 'Please check your database configuration in Vercel environment variables',
+          requiredVars: ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'],
+          error: process.env.NODE_ENV === 'development' || process.env.VERCEL_ENV === 'development' ? error.message : undefined
+        });
+      }
+    } else if (dbConnectionStatus.checking) {
+      // Wait a bit if check is in progress
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    if (!dbConnectionStatus.connected) {
       return res.status(503).json({
-        message: 'Database connection failed. Please check your database configuration and environment variables.',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        message: 'Database connection failed',
+        details: 'Please check your database configuration in Vercel environment variables'
       });
     }
+    
+    next();
   });
 }
 
@@ -143,10 +174,21 @@ app.get('/api/health', async (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(err.status || 500).json({
+  console.error('Express error handler:', err);
+  console.error('Error stack:', err.stack);
+  console.error('Request details:', {
+    method: req.method,
+    url: req.url,
+    path: req.path
+  });
+  
+  const statusCode = err.status || 500;
+  const isDev = process.env.NODE_ENV === 'development' || process.env.VERCEL_ENV === 'development';
+  
+  res.status(statusCode).json({
     message: err.message || 'Internal server error',
-    error: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    error: isDev ? err.message : undefined,
+    stack: isDev ? err.stack : undefined
   });
 });
 
