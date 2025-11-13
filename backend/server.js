@@ -28,6 +28,8 @@ const automationRoutes = require('./routes/automationRoutes');
 const { initializeScheduler } = require('./utils/monthlyScheduler');
 const initializeRBAC = require('./utils/initializeRBAC');
 
+// Initialize Express app
+const app = express();
 const PORT = process.env.PORT || 8000;
 
 // Middleware
