@@ -2,12 +2,21 @@ const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
 // Validate required environment variables
+// Only require variables that are actually used in the configuration
 const requiredEnvVars = ['DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_HOST'];
 const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
-if (missingVars.length > 0 && process.env.VERCEL) {
+if (missingVars.length > 0) {
   console.error('❌ Missing required environment variables:', missingVars.join(', '));
-  console.error('💡 Please set these in your Vercel project settings');
+  if (process.env.VERCEL) {
+    console.error('💡 Please set these in your Vercel project settings');
+  } else {
+    console.error('💡 Please set these in your .env file');
+  }
+  // Don't exit in serverless mode - let it fail gracefully on first request
+  if (!process.env.VERCEL) {
+    console.error('⚠️  Server will continue but database operations will fail');
+  }
 }
 
 const sequelize = new Sequelize(
