@@ -3,7 +3,13 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 
+// Set Vercel environment early to prevent initialization issues
+if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  process.env.VERCEL = '1';
+}
+
 const { sequelize, testConnection } = require('./config/db');
+
 const { User, ISP, Customer, Package, Bill, Payment, Recovery, Installation, Notification, ActivityLog, Role, Permission } = require('./models');
 
 // Import routes
