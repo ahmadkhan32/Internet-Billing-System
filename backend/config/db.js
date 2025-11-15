@@ -34,12 +34,35 @@ if (missingVars.length > 0) {
   }
 }
 
+// Don't use defaults in production/Vercel - require explicit values
+const dbName = process.env.DB_NAME;
+const dbUser = process.env.DB_USER;
+const dbPassword = process.env.DB_PASSWORD;
+const dbHost = process.env.DB_HOST;
+
+// In Vercel/production, don't use localhost defaults
+if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+  if (!dbHost || !dbUser || !dbPassword || !dbName) {
+    const missing = [];
+    if (!dbHost) missing.push('DB_HOST');
+    if (!dbUser) missing.push('DB_USER');
+    if (!dbPassword) missing.push('DB_PASSWORD');
+    if (!dbName) missing.push('DB_NAME');
+    
+    const errorMsg = `Missing required environment variables: ${missing.join(', ')}. Please set these in Vercel project settings.`;
+    console.error('❌', errorMsg);
+    console.error('💡 Go to: Vercel Dashboard → Settings → Environment Variables');
+    console.error('💡 See SET_ENV_VARIABLES_NOW.md for step-by-step instructions');
+    throw new Error(errorMsg);
+  }
+}
+
 const sequelize = new Sequelize(
-  process.env.DB_NAME || 'billing_db',
-  process.env.DB_USER || 'root',
-  process.env.DB_PASSWORD || '',
+  dbName || 'billing_db',
+  dbUser || 'root',
+  dbPassword || '',
   {
-    host: process.env.DB_HOST || 'localhost',
+    host: dbHost || 'localhost',
     dialect: 'mysql',
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
     pool: {
