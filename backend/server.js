@@ -5,35 +5,10 @@ require('dotenv').config();
 
 const { sequelize, testConnection } = require('./config/db');
 
-// Load models with error handling for serverless mode
-let User, ISP, Customer, Package, Bill, Payment, Recovery, Installation, Notification, ActivityLog, Role, Permission;
-
-try {
-  const models = require('./models');
-  User = models.User;
-  ISP = models.ISP;
-  Customer = models.Customer;
-  Package = models.Package;
-  Bill = models.Bill;
-  Payment = models.Payment;
-  Recovery = models.Recovery;
-  Installation = models.Installation;
-  Notification = models.Notification;
-  ActivityLog = models.ActivityLog;
-  Role = models.Role;
-  Permission = models.Permission;
-} catch (modelError) {
-  console.error('⚠️  Error loading models:', modelError.message);
-  // In serverless mode, try to continue - models will be required on first use
-  if (process.env.VERCEL) {
-    console.warn('⚠️  Model loading failed in serverless mode');
-    console.warn('💡 Models will be loaded on first request');
-    // Set to null - routes will handle missing models
-    User = ISP = Customer = Package = Bill = Payment = Recovery = Installation = Notification = ActivityLog = Role = Permission = null;
-  } else {
-    throw modelError;
-  }
-}
+// Load models - must always succeed for routes to work
+// Models don't connect to database until used, so they can be loaded safely
+const models = require('./models');
+const { User, ISP, Customer, Package, Bill, Payment, Recovery, Installation, Notification, ActivityLog, Role, Permission } = models;
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -110,47 +85,34 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Database connection check middleware for serverless (before routes)
+// Only check on first request, allow routes to handle their own errors
 if (process.env.VERCEL) {
+  let dbConnectionChecked = false;
+  let dbConnectionStatus = null;
+  
   app.use('/api', async (req, res, next) => {
-    // Skip health check
+    // Skip health check - it handles its own connection check
     if (req.path === '/health') {
       return next();
     }
     
-    // Check if database is connected
-    try {
-      await sequelize.authenticate();
-      next();
-    } catch (error) {
-      console.error('Database connection error in request:', error.message);
-      console.error('Error details:', {
-        code: error.code,
-        errno: error.errno,
-        sqlState: error.sqlState,
-        sqlMessage: error.sqlMessage
-      });
-      
-      // Check if it's a missing environment variable issue
-      const missingVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'].filter(
-        varName => !process.env[varName]
-      );
-      
-      const errorResponse = {
-        message: 'Database connection failed',
-        details: 'Please check your database configuration in Vercel environment variables'
-      };
-      
-      if (missingVars.length > 0) {
-        errorResponse.missingVariables = missingVars;
-        errorResponse.message = `Missing required environment variables: ${missingVars.join(', ')}`;
-      } else {
-        errorResponse.error = process.env.NODE_ENV === 'development' || process.env.VERCEL_ENV === 'development' 
-          ? error.message 
-          : undefined;
+    // Only check connection once, then cache the result
+    if (!dbConnectionChecked) {
+      try {
+        await sequelize.authenticate();
+        dbConnectionStatus = true;
+        console.log('✅ Database connection verified in serverless mode');
+      } catch (error) {
+        dbConnectionStatus = false;
+        console.error('⚠️  Database connection failed in serverless mode:', error.message);
+        // Don't block - let routes handle the error
+        // This allows the app to start even if DB is temporarily unavailable
       }
-      
-      return res.status(503).json(errorResponse);
+      dbConnectionChecked = true;
     }
+    
+    // Continue to route - routes will handle database errors
+    next();
   });
 }
 
@@ -178,18 +140,29 @@ app.use('/api/automation', automationRoutes);
 app.get('/api/health', async (req, res) => {
   try {
     // Test database connection
-    await testConnection();
-    res.json({ 
-      status: 'OK', 
-      message: 'Server is running',
-      database: 'connected'
-    });
+    const isConnected = await testConnection();
+    if (isConnected) {
+      res.json({ 
+        status: 'OK', 
+        message: 'Server is running',
+        database: 'connected'
+      });
+    } else {
+      res.status(503).json({ 
+        status: 'ERROR', 
+        message: 'Server is running but database connection failed',
+        database: 'disconnected',
+        error: process.env.VERCEL ? 'Check environment variables and database configuration' : undefined
+      });
+    }
   } catch (error) {
+    const isDev = process.env.NODE_ENV === 'development' || process.env.VERCEL;
     res.status(503).json({ 
       status: 'ERROR', 
       message: 'Server is running but database connection failed',
       database: 'disconnected',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: isDev ? error.message : 'Database connection error',
+      hint: 'Check environment variables: DB_HOST, DB_USER, DB_PASSWORD, DB_NAME'
     });
   }
 });
