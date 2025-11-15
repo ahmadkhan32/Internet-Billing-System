@@ -34,8 +34,18 @@ const getApp = () => {
       
       // Try to load the server
       console.log('📥 Loading backend/server.js...');
-      app = require('../backend/server');
-      console.log('✅ Server module loaded');
+      
+      // Set Vercel environment before loading models
+      process.env.VERCEL = '1';
+      
+      try {
+        app = require('../backend/server');
+        console.log('✅ Server module loaded');
+      } catch (requireError) {
+        console.error('❌ Error requiring server module:', requireError.message);
+        console.error('Error stack:', requireError.stack);
+        throw requireError;
+      }
       
       // Verify app is valid
       if (!app) {

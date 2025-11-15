@@ -207,8 +207,18 @@ const isVercel = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
 // Sync database and start server
 const startServer = async () => {
   try {
-    // Test database connection
-    await testConnection();
+    // Test database connection (skip in serverless mode during initialization)
+    if (!isVercel) {
+      await testConnection();
+    } else {
+      // In serverless mode, just try to authenticate without throwing
+      try {
+        await testConnection();
+      } catch (dbError) {
+        console.warn('⚠️  Database connection not ready during initialization (serverless mode)');
+        console.warn('💡 Connection will be established on first request');
+      }
+    }
 
     // Sync database models (create tables if they don't exist)
     // In production, use migrations instead
@@ -295,6 +305,12 @@ const startServer = async () => {
     if (!process.env.JWT_SECRET) {
       console.warn('⚠️  WARNING: JWT_SECRET is not set in environment variables. Please set it in .env file.');
       console.warn('⚠️  Authentication will fail without JWT_SECRET.');
+    }
+
+    // Skip default data creation in serverless mode (tables should already exist)
+    if (isVercel) {
+      console.log('🚀 Running in serverless mode (Vercel) - skipping default data creation');
+      return; // Exit early in serverless mode
     }
 
     // Create default ISPs if they don't exist
@@ -463,17 +479,10 @@ if (!isVercel) {
     process.exit(1);
   });
 } else {
-  // In serverless mode, initialize database connection asynchronously
-  // Don't block app export, but try to connect
-  (async () => {
-    try {
-      await testConnection();
-      console.log('✅ Database connection ready for serverless');
-    } catch (err) {
-      console.error('⚠️  Database connection warning (serverless):', err.message);
-      console.error('💡 Database will be checked on first request');
-    }
-  })();
+  // In serverless mode, don't initialize anything synchronously
+  // The app will be initialized on first request via api/index.js
+  // Database connection will be established on first API request
+  console.log('🚀 Serverless mode detected - app will initialize on first request');
 }
 
 // Graceful shutdown (only in traditional server mode)
