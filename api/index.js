@@ -150,17 +150,30 @@ module.exports = async (req, res) => {
       name: error.name || 'Error'
     };
     
-    // Add more debugging info
-    if (isDev) {
+    // Add more debugging info - always show in Vercel for debugging
+    const isVercelEnv = process.env.VERCEL || process.env.VERCEL_ENV;
+    
+    if (isDev || isVercelEnv) {
       errorDetails.stack = error.stack;
       errorDetails.code = error.code;
+      errorDetails.environment = {
+        NODE_ENV: process.env.NODE_ENV,
+        VERCEL: process.env.VERCEL,
+        VERCEL_ENV: process.env.VERCEL_ENV,
+        hasDB_HOST: !!process.env.DB_HOST,
+        hasDB_USER: !!process.env.DB_USER,
+        hasDB_PASSWORD: !!process.env.DB_PASSWORD,
+        hasDB_NAME: !!process.env.DB_NAME,
+        hasJWT_SECRET: !!process.env.JWT_SECRET
+      };
       errorDetails.tips = [
         'Check if all dependencies are installed (cd backend && npm install)',
-        'Verify environment variables are set correctly',
+        'Verify environment variables are set correctly in Vercel',
         'Check Vercel function logs for more details',
         'Ensure database connection details are correct',
         'Check if backend/node_modules exists',
-        'Verify all required files are in the repository'
+        'Verify all required files are in the repository',
+        'See VERCEL_ENV_SETUP.md for environment variable setup guide'
       ];
     } else {
       // Even in production, show basic error info for debugging

@@ -3,14 +3,37 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 
-// Set Vercel environment early to prevent initialization issues
-if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
-  process.env.VERCEL = '1';
-}
-
 const { sequelize, testConnection } = require('./config/db');
 
-const { User, ISP, Customer, Package, Bill, Payment, Recovery, Installation, Notification, ActivityLog, Role, Permission } = require('./models');
+// Load models with error handling for serverless mode
+let User, ISP, Customer, Package, Bill, Payment, Recovery, Installation, Notification, ActivityLog, Role, Permission;
+
+try {
+  const models = require('./models');
+  User = models.User;
+  ISP = models.ISP;
+  Customer = models.Customer;
+  Package = models.Package;
+  Bill = models.Bill;
+  Payment = models.Payment;
+  Recovery = models.Recovery;
+  Installation = models.Installation;
+  Notification = models.Notification;
+  ActivityLog = models.ActivityLog;
+  Role = models.Role;
+  Permission = models.Permission;
+} catch (modelError) {
+  console.error('⚠️  Error loading models:', modelError.message);
+  // In serverless mode, try to continue - models will be required on first use
+  if (process.env.VERCEL) {
+    console.warn('⚠️  Model loading failed in serverless mode');
+    console.warn('💡 Models will be loaded on first request');
+    // Set to null - routes will handle missing models
+    User = ISP = Customer = Package = Bill = Payment = Recovery = Installation = Notification = ActivityLog = Role = Permission = null;
+  } else {
+    throw modelError;
+  }
+}
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
