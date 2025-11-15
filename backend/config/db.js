@@ -1,6 +1,20 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
+// Check if mysql2 is installed
+try {
+  require('mysql2');
+} catch (mysql2Error) {
+  console.error('❌ mysql2 package is not installed!');
+  console.error('💡 Run: cd backend && npm install mysql2');
+  if (process.env.VERCEL) {
+    console.error('💡 Vercel: Check that backend dependencies are installed in build command');
+    throw new Error('Please install mysql2 package manually. Check Vercel build logs and ensure backend/node_modules exists.');
+  } else {
+    throw mysql2Error;
+  }
+}
+
 // Validate required environment variables
 // Only require variables that are actually used in the configuration
 const requiredEnvVars = ['DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_HOST'];
@@ -10,6 +24,7 @@ if (missingVars.length > 0) {
   console.error('❌ Missing required environment variables:', missingVars.join(', '));
   if (process.env.VERCEL) {
     console.error('💡 Please set these in your Vercel project settings');
+    console.error('💡 Go to: Vercel Dashboard → Settings → Environment Variables');
   } else {
     console.error('💡 Please set these in your .env file');
   }

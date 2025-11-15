@@ -1,0 +1,16 @@
+# Ignore test files and directories
+test-results/
+*.test.js
+*.spec.js
+
+# Ignore local development files
+.env.local
+.env.development
+
+# Ignore backups
+backups/
+
+# Ignore debug logs
+*.log
+debug.log
+
