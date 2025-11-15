@@ -75,23 +75,44 @@ const sequelize = new Sequelize(
 // Test connection
 const testConnection = async () => {
   try {
+    // Check environment variables first
+    const requiredVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
+    const missingVars = requiredVars.filter(v => !process.env[v]);
+    
+    if (missingVars.length > 0) {
+      const errorMsg = `Missing environment variables: ${missingVars.join(', ')}`;
+      console.error('❌', errorMsg);
+      if (process.env.VERCEL) {
+        console.error('💡 Go to: Vercel Dashboard → Settings → Environment Variables');
+        console.error('💡 Add these variables and redeploy');
+      }
+      throw new Error(errorMsg);
+    }
+    
     await sequelize.authenticate();
     console.log('✅ Database connection established successfully.');
     return true;
   } catch (error) {
     console.error('❌ Unable to connect to the database:', error.message);
+    console.error('📋 Connection Details:');
+    console.error('   Host:', process.env.DB_HOST || 'NOT SET');
+    console.error('   User:', process.env.DB_USER || 'NOT SET');
+    console.error('   Database:', process.env.DB_NAME || 'NOT SET');
+    console.error('   Password:', process.env.DB_PASSWORD ? '***SET***' : 'NOT SET');
+    
     console.error('\n💡 Troubleshooting:');
     if (process.env.VERCEL) {
       console.error('   Vercel Deployment:');
-      console.error('   1. Check environment variables in Vercel project settings');
-      console.error('   2. Verify database allows connections from Vercel IPs');
-      console.error('   3. Check database credentials are correct');
-      console.error('   4. Ensure database is accessible from the internet\n');
+      console.error('   1. ✅ Check environment variables in Vercel project settings');
+      console.error('   2. ✅ Verify database allows connections from Vercel IPs');
+      console.error('   3. ✅ Check database credentials are correct');
+      console.error('   4. ✅ Ensure database is accessible from the internet');
+      console.error('   5. ✅ Check database firewall/security groups allow external connections');
     } else {
       console.error('   1. Check if MySQL is running');
       console.error('   2. Verify .env file has correct DB credentials');
       console.error('   3. Ensure database exists (run: npm run init-db)');
-      console.error('   4. Check MySQL user permissions\n');
+      console.error('   4. Check MySQL user permissions');
     }
     
     // In serverless mode, don't throw - let the request handler deal with it

@@ -197,7 +197,16 @@ const login = async (req, res) => {
     let statusCode = 500;
     
     if (error.name === 'SequelizeConnectionError' || error.name === 'SequelizeConnectionRefusedError') {
-      errorMessage = 'Database connection failed. Please check your database configuration.';
+      // Check if it's a missing environment variable issue
+      const missingVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'].filter(
+        v => !process.env[v]
+      );
+      
+      if (missingVars.length > 0) {
+        errorMessage = `Missing environment variables: ${missingVars.join(', ')}. Please set these in Vercel project settings.`;
+      } else {
+        errorMessage = 'Database connection failed. Please check your database configuration and ensure database is accessible from Vercel.';
+      }
       statusCode = 503;
     } else if (error.name === 'SequelizeDatabaseError') {
       errorMessage = 'Database error. Please check your database configuration.';
