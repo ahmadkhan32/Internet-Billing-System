@@ -1,32 +1,12 @@
 {
   "name": "internet-billing-system",
   "version": "1.0.0",
-  "description": "Internet Billing System with Automated Testing",
+  "description": "Internet Billing System",
   "private": true,
-  "scripts": {
-    "test:backend": "cd backend && npm test",
-    "test:frontend": "cd frontend && npm test",
-    "test:load": "artillery run tests/load/performance.yml",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
-    "test:e2e:headed": "playwright test --headed",
-    "test:e2e:chromium": "playwright test --project=chromium",
-    "test:e2e:api": "playwright test tests/api",
-    "test:e2e:report": "playwright show-report",
-    "test:all": "npm run test:backend && npm run test:frontend && npm run test:e2e",
-    "test:all:parallel": "npm run test:backend & npm run test:frontend",
-    "test:coverage": "cd backend && npm run test:coverage",
-    "test:report": "cd frontend && npm run test:report",
-    "test:report:all": "npm run test:coverage && npm run test:report"
-  },
-  "devDependencies": {
-    "@playwright/test": "^1.56.1",
-    "artillery": "^2.0.0"
-  },
   "keywords": [
     "billing",
-    "testing",
-    "automation"
+    "saas",
+    "isp"
   ],
   "author": "",
   "license": "ISC"
