@@ -16,17 +16,39 @@ try {
 }
 
 // Validate required environment variables
-// Only require variables that are actually used in the configuration
-const requiredEnvVars = ['DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_HOST'];
-const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+// Check if variables are undefined (not set), not just falsy
+// This allows empty strings for local development (e.g., DB_PASSWORD= for no password)
+const checkEnvVar = (varName) => {
+  return process.env[varName] !== undefined;
+};
+
+const requiredEnvVars = ['DB_NAME', 'DB_USER', 'DB_HOST'];
+const missingVars = requiredEnvVars.filter(varName => !checkEnvVar(varName));
+
+// For DB_PASSWORD, check differently based on environment
+// In Vercel/production, DB_PASSWORD must be set AND non-empty (security requirement)
+// In local development, DB_PASSWORD can be empty string (DB_PASSWORD= means no password)
+if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+  // In production, DB_PASSWORD must be set and non-empty
+  if (!checkEnvVar('DB_PASSWORD') || process.env.DB_PASSWORD.trim() === '') {
+    missingVars.push('DB_PASSWORD');
+  }
+} else {
+  // In local development, DB_PASSWORD just needs to be defined (can be empty)
+  if (!checkEnvVar('DB_PASSWORD')) {
+    missingVars.push('DB_PASSWORD');
+  }
+}
 
 if (missingVars.length > 0) {
   console.error('❌ Missing required environment variables:', missingVars.join(', '));
   if (process.env.VERCEL) {
     console.error('💡 Please set these in your Vercel project settings');
     console.error('💡 Go to: Vercel Dashboard → Settings → Environment Variables');
+    console.error('💡 After adding variables, you MUST redeploy for them to take effect!');
   } else {
     console.error('💡 Please set these in your .env file');
+    console.error('💡 Note: DB_PASSWORD can be empty (DB_PASSWORD=) if MySQL has no password');
   }
   // Don't exit in serverless mode - let it fail gracefully on first request
   if (!process.env.VERCEL) {
@@ -42,13 +64,14 @@ const dbHost = process.env.DB_HOST;
 
 // In Vercel, fail fast if variables are missing (don't try localhost)
 if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-  if (!dbHost || !dbUser || !dbPassword || !dbName) {
-    const missing = [];
-    if (!dbHost) missing.push('DB_HOST');
-    if (!dbUser) missing.push('DB_USER');
-    if (!dbPassword) missing.push('DB_PASSWORD');
-    if (!dbName) missing.push('DB_NAME');
-    
+  const missing = [];
+  if (!dbHost || dbHost.trim() === '') missing.push('DB_HOST');
+  if (!dbUser || dbUser.trim() === '') missing.push('DB_USER');
+  // In production, DB_PASSWORD must be set and non-empty
+  if (!dbPassword || dbPassword.trim() === '') missing.push('DB_PASSWORD');
+  if (!dbName || dbName.trim() === '') missing.push('DB_NAME');
+  
+  if (missing.length > 0) {
     const errorMsg = `Missing required environment variables: ${missing.join(', ')}. Please set these in Vercel project settings.`;
     console.error('❌', errorMsg);
     console.error('💡 Go to: Vercel Dashboard → Settings → Environment Variables');
@@ -111,14 +134,20 @@ const testConnection = async () => {
     const requiredVars = ['DB_HOST', 'DB_USER', 'DB_NAME'];
     const missingVars = requiredVars.filter(v => !process.env[v] || process.env[v].trim() === '');
     
-    // For Vercel/production, also require DB_PASSWORD to be explicitly set (even if empty string)
+    // For Vercel/production, DB_PASSWORD must be set AND non-empty (security requirement)
     if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-      if (process.env.DB_PASSWORD === undefined) {
+      if (process.env.DB_PASSWORD === undefined || process.env.DB_PASSWORD.trim() === '') {
         missingVars.push('DB_PASSWORD');
       }
     }
     // For local development, DB_PASSWORD can be empty string (means no password)
     // Empty string is valid for local MySQL with no password
+    // But it still needs to be defined (DB_PASSWORD=)
+    if (!process.env.VERCEL && process.env.NODE_ENV !== 'production') {
+      if (process.env.DB_PASSWORD === undefined) {
+        missingVars.push('DB_PASSWORD');
+      }
+    }
     
     if (missingVars.length > 0) {
       const errorMsg = `Missing environment variables: ${missingVars.join(', ')}`;
