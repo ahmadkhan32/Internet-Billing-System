@@ -167,6 +167,104 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// Diagnostic endpoint - provides detailed connection information
+app.get('/api/diagnose', async (req, res) => {
+  const diagnostics = {
+    timestamp: new Date().toISOString(),
+    environment: {
+      NODE_ENV: process.env.NODE_ENV || 'not set',
+      VERCEL: !!process.env.VERCEL,
+      VERCEL_ENV: process.env.VERCEL_ENV || 'not set'
+    },
+    environmentVariables: {
+      DB_HOST: process.env.DB_HOST ? `${process.env.DB_HOST.substring(0, 20)}...` : '❌ NOT SET',
+      DB_USER: process.env.DB_USER ? process.env.DB_USER : '❌ NOT SET',
+      DB_PASSWORD: process.env.DB_PASSWORD ? '✅ SET' : '❌ NOT SET',
+      DB_NAME: process.env.DB_NAME ? process.env.DB_NAME : '❌ NOT SET',
+      JWT_SECRET: process.env.JWT_SECRET ? '✅ SET' : '❌ NOT SET'
+    },
+    connectionTest: null,
+    recommendations: []
+  };
+
+  // Check for missing variables
+  const missingVars = [];
+  if (!process.env.DB_HOST) missingVars.push('DB_HOST');
+  if (!process.env.DB_USER) missingVars.push('DB_USER');
+  if (!process.env.DB_PASSWORD) missingVars.push('DB_PASSWORD');
+  if (!process.env.DB_NAME) missingVars.push('DB_NAME');
+  if (!process.env.JWT_SECRET) missingVars.push('JWT_SECRET');
+
+  if (missingVars.length > 0) {
+    diagnostics.recommendations.push({
+      priority: 'HIGH',
+      issue: `Missing environment variables: ${missingVars.join(', ')}`,
+      fix: 'Go to Vercel Dashboard → Settings → Environment Variables → Add missing variables → Redeploy'
+    });
+  }
+
+  // Test database connection
+  try {
+    const connectionResult = await testConnection();
+    diagnostics.connectionTest = {
+      status: connectionResult ? 'SUCCESS' : 'FAILED',
+      message: connectionResult ? 'Database connection successful' : 'Database connection failed'
+    };
+  } catch (error) {
+    diagnostics.connectionTest = {
+      status: 'FAILED',
+      message: error.message,
+      errorCode: error.code,
+      errorName: error.name
+    };
+
+    // Provide specific recommendations based on error
+    if (error.message.includes('ECONNREFUSED') || error.message.includes('timeout')) {
+      diagnostics.recommendations.push({
+        priority: 'HIGH',
+        issue: 'Database firewall blocking connections',
+        fix: 'Allow connections from 0.0.0.0/0 in your database firewall settings. See FIX_DATABASE_CONNECTION_NOW.md for provider-specific steps.'
+      });
+    } else if (error.message.includes('Access denied') || error.message.includes('password')) {
+      diagnostics.recommendations.push({
+        priority: 'HIGH',
+        issue: 'Database authentication failed',
+        fix: 'Verify DB_USER and DB_PASSWORD are correct in Vercel environment variables'
+      });
+    } else if (error.message.includes('Unknown database')) {
+      diagnostics.recommendations.push({
+        priority: 'HIGH',
+        issue: 'Database does not exist',
+        fix: 'Verify DB_NAME is correct or create the database'
+      });
+    } else if (error.message.includes('SSL') || error.message.includes('certificate')) {
+      diagnostics.recommendations.push({
+        priority: 'MEDIUM',
+        issue: 'SSL/TLS connection issue',
+        fix: 'SSL is automatically enabled for cloud databases. Verify your database supports SSL connections.'
+      });
+    } else if (missingVars.length === 0) {
+      diagnostics.recommendations.push({
+        priority: 'HIGH',
+        issue: 'Database connection failed despite all variables being set',
+        fix: '1. Check database firewall allows 0.0.0.0/0, 2. Verify database is running, 3. Test connection locally, 4. Check Vercel function logs for details'
+      });
+    }
+  }
+
+  // Add general recommendations
+  if (process.env.VERCEL && diagnostics.connectionTest?.status === 'FAILED') {
+    diagnostics.recommendations.push({
+      priority: 'INFO',
+      issue: 'Vercel deployment detected',
+      fix: 'After fixing issues, redeploy in Vercel: Deployments → Latest → Redeploy'
+    });
+  }
+
+  const statusCode = diagnostics.connectionTest?.status === 'SUCCESS' ? 200 : 503;
+  res.status(statusCode).json(diagnostics);
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Express error handler:', err);

@@ -153,8 +153,8 @@ const sequelize = new Sequelize(
   }
 );
 
-// Test connection
-const testConnection = async () => {
+// Test connection with retry logic
+const testConnection = async (retries = 2) => {
   try {
     // Check environment variables first
     // In local development, DB_PASSWORD can be empty (no password)
@@ -187,19 +187,44 @@ const testConnection = async () => {
         console.error('💡 Please set these in your .env file');
         console.error('💡 Note: DB_PASSWORD can be empty (DB_PASSWORD=) if MySQL has no password');
       }
-      throw new Error(errorMsg);
+      const err = new Error(errorMsg);
+      err.code = 'MISSING_ENV_VARS';
+      err.missingVars = missingVars;
+      throw err;
     }
     
-    await sequelize.authenticate();
-    console.log('✅ Database connection established successfully.');
-    return true;
+    // Attempt connection with retry logic
+    let lastError;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        await sequelize.authenticate();
+        console.log('✅ Database connection established successfully.');
+        return true;
+      } catch (connError) {
+        lastError = connError;
+        if (attempt < retries) {
+          const delay = Math.pow(2, attempt) * 1000; // Exponential backoff: 1s, 2s, 4s
+          console.warn(`⚠️  Connection attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+    
+    // All retries failed, throw the last error
+    throw lastError;
   } catch (error) {
+    // Preserve error code and details for diagnostics
+    if (!error.code) {
+      error.code = error.original?.code || error.parent?.code || 'UNKNOWN';
+    }
+    
     console.error('❌ Unable to connect to the database:', error.message);
     console.error('📋 Connection Details:');
     console.error('   Host:', process.env.DB_HOST || 'NOT SET');
     console.error('   User:', process.env.DB_USER || 'NOT SET');
     console.error('   Database:', process.env.DB_NAME || 'NOT SET');
     console.error('   Password:', process.env.DB_PASSWORD ? '***SET***' : 'NOT SET');
+    console.error('   Error Code:', error.code);
     
     console.error('\n💡 Troubleshooting:');
     if (process.env.VERCEL) {
