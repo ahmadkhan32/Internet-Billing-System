@@ -198,9 +198,28 @@ const login = async (req, res) => {
     
     if (error.name === 'SequelizeConnectionError' || error.name === 'SequelizeConnectionRefusedError') {
       // Check if it's a missing environment variable issue
-      const missingVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'].filter(
-        v => !process.env[v]
-      );
+      // Check for undefined (not set), not just falsy values
+      const missingVars = [];
+      if (process.env.DB_HOST === undefined || process.env.DB_HOST.trim() === '') {
+        missingVars.push('DB_HOST');
+      }
+      if (process.env.DB_USER === undefined || process.env.DB_USER.trim() === '') {
+        missingVars.push('DB_USER');
+      }
+      if (process.env.DB_NAME === undefined || process.env.DB_NAME.trim() === '') {
+        missingVars.push('DB_NAME');
+      }
+      // In production/Vercel, DB_PASSWORD must be set and non-empty
+      if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+        if (process.env.DB_PASSWORD === undefined || process.env.DB_PASSWORD.trim() === '') {
+          missingVars.push('DB_PASSWORD');
+        }
+      } else {
+        // In local dev, just check if it's undefined (empty string is OK)
+        if (process.env.DB_PASSWORD === undefined) {
+          missingVars.push('DB_PASSWORD');
+        }
+      }
       
       if (missingVars.length > 0) {
         errorMessage = `Missing environment variables: ${missingVars.join(', ')}. Please set these in Vercel project settings.`;
