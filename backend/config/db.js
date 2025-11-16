@@ -99,8 +99,19 @@ const sequelize = new Sequelize(
 const testConnection = async () => {
   try {
     // Check environment variables first
-    const requiredVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
-    const missingVars = requiredVars.filter(v => !process.env[v]);
+    // In local development, DB_PASSWORD can be empty (no password)
+    // In Vercel/production, all variables must be explicitly set
+    const requiredVars = ['DB_HOST', 'DB_USER', 'DB_NAME'];
+    const missingVars = requiredVars.filter(v => !process.env[v] || process.env[v].trim() === '');
+    
+    // For Vercel/production, also require DB_PASSWORD to be explicitly set (even if empty string)
+    if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+      if (process.env.DB_PASSWORD === undefined) {
+        missingVars.push('DB_PASSWORD');
+      }
+    }
+    // For local development, DB_PASSWORD can be empty string (means no password)
+    // Empty string is valid for local MySQL with no password
     
     if (missingVars.length > 0) {
       const errorMsg = `Missing environment variables: ${missingVars.join(', ')}`;
@@ -108,6 +119,9 @@ const testConnection = async () => {
       if (process.env.VERCEL) {
         console.error('💡 Go to: Vercel Dashboard → Settings → Environment Variables');
         console.error('💡 Add these variables and redeploy');
+      } else {
+        console.error('💡 Please set these in your .env file');
+        console.error('💡 Note: DB_PASSWORD can be empty (DB_PASSWORD=) if MySQL has no password');
       }
       throw new Error(errorMsg);
     }
