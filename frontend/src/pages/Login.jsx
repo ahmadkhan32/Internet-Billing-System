@@ -21,21 +21,14 @@ const Login = () => {
       const result = await login(email, password, businessId || undefined);
       
       if (result.success) {
-        // Determine redirect based on user role
-        let redirectPath = '/dashboard';
-        if (result.user?.role === 'super_admin') {
-          redirectPath = '/super-admin/dashboard';
-        }
-        
-        // Small delay to ensure state is updated
-        setTimeout(() => {
-          navigate(redirectPath, { replace: true });
-        }, 100);
+        // Redirect to dashboard - will be handled by App routing
+        // Use window.location for reliable redirect
+        window.location.href = '/dashboard';
       } else {
-        setError(result.message || 'Login failed. Please try again.');
+        setError(result.message || 'Login failed. Please check your credentials.');
       }
     } catch (err) {
-      console.error('Login form error:', err);
+      console.error('Login error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);

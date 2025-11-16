@@ -34,27 +34,28 @@ apiClient.interceptors.response.use(
       
       // Show user-friendly error
       if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
+        // Check if we're on Vercel (production)
         const isVercel = window.location.hostname.includes('vercel.app');
-        error.userMessage = isVercel 
-          ? 'Cannot connect to server. Please check:\n1. Environment variables are set in Vercel\n2. Database is accessible\n3. Check Vercel function logs'
-          : 'Cannot connect to server. Please make sure the backend is running on http://localhost:8000';
+        if (isVercel) {
+          error.userMessage = 'Cannot connect to backend API. Please check:\n' +
+            '1. Backend is deployed on Vercel\n' +
+            '2. API routes are configured correctly\n' +
+            '3. Check Vercel function logs for errors';
+        } else {
+          error.userMessage = 'Cannot connect to server. Please make sure the backend is running on http://localhost:8000';
+        }
       }
-    }
-    
-    // Log detailed error information for debugging
-    if (error.response) {
-      console.error('API Error:', error.response.status, error.response.statusText);
-      console.error('Error data:', error.response.data);
+    } else {
+      // Log server errors for debugging
+      console.error('API Error:', error.response.status, error.response.data);
       
-      // For 500 errors, show more details
+      // For 500 errors, preserve the error details
       if (error.response.status === 500) {
-        const errorData = error.response.data;
-        if (errorData?.environment) {
-          console.error('Environment status:', errorData.environment);
-        }
-        if (errorData?.error) {
-          console.error('Server error:', errorData.error);
-        }
+        console.error('Server Error Details:', {
+          message: error.response.data?.message,
+          error: error.response.data?.error,
+          environment: error.response.data?.environment
+        });
       }
     }
     
@@ -62,7 +63,7 @@ apiClient.interceptors.response.use(
       // Unauthorized - clear token and redirect to login
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      // Only redirect if not already on login page
+      // Don't redirect if we're already on login page
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
       }

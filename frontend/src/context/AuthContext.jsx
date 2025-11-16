@@ -55,7 +55,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('user', JSON.stringify(user));
         setUser(user);
         
-        return { success: true, user };
+        return { success: true };
       } else {
         return {
           success: false,
@@ -64,8 +64,8 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Login error:', error);
-      console.error('Error response:', error.response);
-      console.error('Error response data:', error.response?.data);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
       
       // Handle network errors specifically
       if (!error.response) {
@@ -82,49 +82,53 @@ export const AuthProvider = ({ children }) => {
         };
       }
       
-      // Extract error message safely - handle 500 errors specifically
+      // Extract error message safely - prioritize server error messages
       let errorMessage = 'Login failed. Please check your credentials and try again.';
       
-      if (error.response?.status === 500) {
-        // Server error - show helpful message
-        const errorData = error.response.data;
+      if (error.response?.data) {
+        const data = error.response.data;
         
-        if (errorData?.message) {
-          errorMessage = errorData.message;
-        } else if (errorData?.error) {
-          errorMessage = typeof errorData.error === 'string' ? errorData.error : String(errorData.error);
-        } else if (errorData?.details) {
-          errorMessage = `Server error: ${errorData.details}`;
-        } else {
-          errorMessage = 'Server error occurred. Please check:\n' +
+        // Check for fatal server error (500)
+        if (data.message && data.message.includes('Fatal server error')) {
+          errorMessage = 'Server initialization error. Please check:\n' +
             '1. Environment variables are set in Vercel\n' +
-            '2. Database is accessible\n' +
+            '2. Database connection is configured\n' +
             '3. Check Vercel function logs for details';
-        }
-      } else if (error.response?.data) {
-        const errorData = error.response.data;
-        
-        if (typeof errorData.message === 'string') {
-          errorMessage = errorData.message;
-        } else if (typeof errorData.error === 'string') {
-          errorMessage = errorData.error;
-        } else if (errorData.errors && Array.isArray(errorData.errors)) {
-          errorMessage = errorData.errors.map(e => e.msg || e.message || String(e)).join(', ');
-        } else if (errorData.environment) {
-          // Show environment variable status if available
-          const missing = [];
-          if (!errorData.environment.hasDB_HOST) missing.push('DB_HOST');
-          if (!errorData.environment.hasDB_USER) missing.push('DB_USER');
-          if (!errorData.environment.hasDB_PASSWORD) missing.push('DB_PASSWORD');
-          if (!errorData.environment.hasDB_NAME) missing.push('DB_NAME');
-          if (!errorData.environment.hasJWT_SECRET) missing.push('JWT_SECRET');
           
-          if (missing.length > 0) {
-            errorMessage = `Missing environment variables: ${missing.join(', ')}\nPlease set these in Vercel project settings.`;
+          if (data.error) {
+            errorMessage += `\n\nError: ${data.error}`;
           }
+          if (data.environment) {
+            const missing = [];
+            if (!data.environment.hasDB_HOST) missing.push('DB_HOST');
+            if (!data.environment.hasDB_USER) missing.push('DB_USER');
+            if (!data.environment.hasDB_PASSWORD) missing.push('DB_PASSWORD');
+            if (!data.environment.hasDB_NAME) missing.push('DB_NAME');
+            if (!data.environment.hasJWT_SECRET) missing.push('JWT_SECRET');
+            
+            if (missing.length > 0) {
+              errorMessage += `\n\nMissing environment variables: ${missing.join(', ')}`;
+              errorMessage += '\nPlease set these in Vercel project settings.';
+            }
+          }
+        } else if (typeof data.message === 'string') {
+          errorMessage = data.message;
+        } else if (typeof data.error === 'string') {
+          errorMessage = data.error;
+        } else if (data.errors && Array.isArray(data.errors)) {
+          errorMessage = data.errors.map(e => e.msg || e.message || String(e)).join(', ');
         }
       } else if (error.message && typeof error.message === 'string') {
         errorMessage = error.message;
+      }
+      
+      // For 500 errors, add more context
+      if (error.response?.status === 500) {
+        errorMessage = `Server error: ${errorMessage}\n\nPlease check:\n` +
+          '1. Backend is running correctly\n' +
+          '2. Database connection is working\n' +
+          '3. Environment variables are set\n' +
+          '4. Check server logs for details';
       }
       
       return {
