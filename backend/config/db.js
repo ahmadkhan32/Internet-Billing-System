@@ -34,13 +34,13 @@ if (missingVars.length > 0) {
   }
 }
 
-// Don't use defaults in production/Vercel - require explicit values
+// In Vercel/production, don't use localhost defaults - require explicit values
 const dbName = process.env.DB_NAME;
 const dbUser = process.env.DB_USER;
 const dbPassword = process.env.DB_PASSWORD;
 const dbHost = process.env.DB_HOST;
 
-// In Vercel/production, don't use localhost defaults
+// In Vercel, fail fast if variables are missing (don't try localhost)
 if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
   if (!dbHost || !dbUser || !dbPassword || !dbName) {
     const missing = [];
