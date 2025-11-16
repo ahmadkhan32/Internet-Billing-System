@@ -30,11 +30,31 @@ apiClient.interceptors.response.use(
     if (!error.response) {
       console.error('Network Error:', error.message);
       console.error('Backend URL:', API_BASE_URL);
-      console.error('Make sure the backend server is running on port 8000');
+      console.error('Error code:', error.code);
       
       // Show user-friendly error
       if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
-        error.userMessage = 'Cannot connect to server. Please make sure the backend is running on http://localhost:8000';
+        const isVercel = window.location.hostname.includes('vercel.app');
+        error.userMessage = isVercel 
+          ? 'Cannot connect to server. Please check:\n1. Environment variables are set in Vercel\n2. Database is accessible\n3. Check Vercel function logs'
+          : 'Cannot connect to server. Please make sure the backend is running on http://localhost:8000';
+      }
+    }
+    
+    // Log detailed error information for debugging
+    if (error.response) {
+      console.error('API Error:', error.response.status, error.response.statusText);
+      console.error('Error data:', error.response.data);
+      
+      // For 500 errors, show more details
+      if (error.response.status === 500) {
+        const errorData = error.response.data;
+        if (errorData?.environment) {
+          console.error('Environment status:', errorData.environment);
+        }
+        if (errorData?.error) {
+          console.error('Server error:', errorData.error);
+        }
       }
     }
     
@@ -42,7 +62,10 @@ apiClient.interceptors.response.use(
       // Unauthorized - clear token and redirect to login
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      // Only redirect if not already on login page
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

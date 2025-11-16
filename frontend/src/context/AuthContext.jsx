@@ -55,7 +55,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('user', JSON.stringify(user));
         setUser(user);
         
-        return { success: true };
+        return { success: true, user };
       } else {
         return {
           success: false,
@@ -64,6 +64,8 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Login error:', error);
+      console.error('Error response:', error.response);
+      console.error('Error response data:', error.response?.data);
       
       // Handle network errors specifically
       if (!error.response) {
@@ -75,21 +77,51 @@ export const AuthProvider = ({ children }) => {
         
         return {
           success: false,
-          message: String(networkError), // Ensure it's a string
+          message: String(networkError),
           isNetworkError: true
         };
       }
       
-      // Extract error message safely
+      // Extract error message safely - handle 500 errors specifically
       let errorMessage = 'Login failed. Please check your credentials and try again.';
       
-      if (error.response?.data) {
-        if (typeof error.response.data.message === 'string') {
-          errorMessage = error.response.data.message;
-        } else if (typeof error.response.data.error === 'string') {
-          errorMessage = error.response.data.error;
-        } else if (error.response.data.errors && Array.isArray(error.response.data.errors)) {
-          errorMessage = error.response.data.errors.map(e => e.msg || e.message || String(e)).join(', ');
+      if (error.response?.status === 500) {
+        // Server error - show helpful message
+        const errorData = error.response.data;
+        
+        if (errorData?.message) {
+          errorMessage = errorData.message;
+        } else if (errorData?.error) {
+          errorMessage = typeof errorData.error === 'string' ? errorData.error : String(errorData.error);
+        } else if (errorData?.details) {
+          errorMessage = `Server error: ${errorData.details}`;
+        } else {
+          errorMessage = 'Server error occurred. Please check:\n' +
+            '1. Environment variables are set in Vercel\n' +
+            '2. Database is accessible\n' +
+            '3. Check Vercel function logs for details';
+        }
+      } else if (error.response?.data) {
+        const errorData = error.response.data;
+        
+        if (typeof errorData.message === 'string') {
+          errorMessage = errorData.message;
+        } else if (typeof errorData.error === 'string') {
+          errorMessage = errorData.error;
+        } else if (errorData.errors && Array.isArray(errorData.errors)) {
+          errorMessage = errorData.errors.map(e => e.msg || e.message || String(e)).join(', ');
+        } else if (errorData.environment) {
+          // Show environment variable status if available
+          const missing = [];
+          if (!errorData.environment.hasDB_HOST) missing.push('DB_HOST');
+          if (!errorData.environment.hasDB_USER) missing.push('DB_USER');
+          if (!errorData.environment.hasDB_PASSWORD) missing.push('DB_PASSWORD');
+          if (!errorData.environment.hasDB_NAME) missing.push('DB_NAME');
+          if (!errorData.environment.hasJWT_SECRET) missing.push('JWT_SECRET');
+          
+          if (missing.length > 0) {
+            errorMessage = `Missing environment variables: ${missing.join(', ')}\nPlease set these in Vercel project settings.`;
+          }
         }
       } else if (error.message && typeof error.message === 'string') {
         errorMessage = error.message;
@@ -97,7 +129,7 @@ export const AuthProvider = ({ children }) => {
       
       return {
         success: false,
-        message: String(errorMessage) // Ensure it's always a string
+        message: String(errorMessage)
       };
     }
   };

@@ -17,15 +17,29 @@ const Login = () => {
     setError('');
     setLoading(true);
 
-    const result = await login(email, password, businessId || undefined);
-    
-    if (result.success) {
-      navigate('/dashboard');
-    } else {
-      setError(result.message);
+    try {
+      const result = await login(email, password, businessId || undefined);
+      
+      if (result.success) {
+        // Determine redirect based on user role
+        let redirectPath = '/dashboard';
+        if (result.user?.role === 'super_admin') {
+          redirectPath = '/super-admin/dashboard';
+        }
+        
+        // Small delay to ensure state is updated
+        setTimeout(() => {
+          navigate(redirectPath, { replace: true });
+        }, 100);
+      } else {
+        setError(result.message || 'Login failed. Please try again.');
+      }
+    } catch (err) {
+      console.error('Login form error:', err);
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (
