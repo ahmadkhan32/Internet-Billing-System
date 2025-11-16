@@ -87,6 +87,27 @@ if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
   }
 }
 
+// Configure SSL for cloud databases
+// Most cloud databases (PlanetScale, AWS RDS, etc.) require SSL
+const sslConfig = {};
+const useSSL = process.env.DB_SSL !== 'false'; // Default to true unless explicitly disabled
+
+if (useSSL && (process.env.VERCEL || process.env.NODE_ENV === 'production' || dbHost?.includes('.psdb.cloud') || dbHost?.includes('.rds.amazonaws.com') || dbHost?.includes('.railway.app'))) {
+  // Cloud databases typically require SSL
+  sslConfig.ssl = {
+    rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false', // Default to true for security
+    // For PlanetScale and most cloud providers, we don't need to provide certs
+    // They use public CA certificates
+  };
+  console.log('🔒 SSL enabled for database connection (cloud database detected)');
+} else if (useSSL && process.env.DB_SSL === 'true') {
+  // Explicitly enabled via environment variable
+  sslConfig.ssl = {
+    rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
+  };
+  console.log('🔒 SSL enabled for database connection (explicitly configured)');
+}
+
 const sequelize = new Sequelize(
   dbName || 'billing_db',
   dbUser || 'root',
@@ -95,6 +116,13 @@ const sequelize = new Sequelize(
     host: dbHost || 'localhost',
     dialect: 'mysql',
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    dialectOptions: {
+      ...sslConfig,
+      // Additional connection options
+      connectTimeout: 30000, // 30 seconds
+      // Support for timezone
+      timezone: '+00:00',
+    },
     pool: {
       max: process.env.VERCEL ? 2 : 5, // Lower pool size for serverless
       min: 0,
@@ -177,15 +205,42 @@ const testConnection = async () => {
     if (process.env.VERCEL) {
       console.error('   Vercel Deployment:');
       console.error('   1. ✅ Check environment variables in Vercel project settings');
-      console.error('   2. ✅ Verify database allows connections from Vercel IPs');
+      console.error('   2. ✅ Verify database allows connections from Vercel IPs (0.0.0.0/0)');
       console.error('   3. ✅ Check database credentials are correct');
       console.error('   4. ✅ Ensure database is accessible from the internet');
       console.error('   5. ✅ Check database firewall/security groups allow external connections');
+      console.error('   6. ✅ For cloud databases (PlanetScale, AWS RDS), SSL is automatically enabled');
+      console.error('   7. ✅ If SSL issues, set DB_SSL=false (not recommended for production)');
+      
+      // Provide specific guidance based on error
+      if (error.message.includes('SSL') || error.message.includes('certificate')) {
+        console.error('\n   🔒 SSL/TLS Issues:');
+        console.error('   - Cloud databases require SSL connections');
+        console.error('   - SSL is automatically enabled for: .psdb.cloud, .rds.amazonaws.com, .railway.app');
+        console.error('   - If you see SSL errors, verify your database supports SSL');
+        console.error('   - Check database provider documentation for SSL requirements');
+      }
+      
+      if (error.message.includes('ECONNREFUSED') || error.message.includes('timeout')) {
+        console.error('\n   🌐 Network/Firewall Issues:');
+        console.error('   - Database must allow connections from anywhere (0.0.0.0/0)');
+        console.error('   - Vercel uses dynamic IPs, so IP whitelisting won\'t work');
+        console.error('   - Check database provider firewall settings');
+        console.error('   - Verify database is publicly accessible (not private network only)');
+      }
+      
+      if (error.message.includes('Access denied') || error.message.includes('password')) {
+        console.error('\n   🔐 Authentication Issues:');
+        console.error('   - Verify DB_USER and DB_PASSWORD are correct');
+        console.error('   - Check if database user has proper permissions');
+        console.error('   - Ensure user can connect from external IPs');
+      }
     } else {
       console.error('   1. Check if MySQL is running');
       console.error('   2. Verify .env file has correct DB credentials');
       console.error('   3. Ensure database exists (run: npm run init-db)');
       console.error('   4. Check MySQL user permissions');
+      console.error('   5. For local MySQL, SSL is disabled by default');
     }
     
     // In serverless mode, don't throw - let the request handler deal with it
