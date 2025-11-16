@@ -52,8 +52,15 @@ if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
     const errorMsg = `Missing required environment variables: ${missing.join(', ')}. Please set these in Vercel project settings.`;
     console.error('❌', errorMsg);
     console.error('💡 Go to: Vercel Dashboard → Settings → Environment Variables');
-    console.error('💡 See SET_ENV_VARIABLES_NOW.md for step-by-step instructions');
-    throw new Error(errorMsg);
+    console.error('💡 See SET_ENV_VARIABLES_URGENT.md for step-by-step instructions');
+    console.error('💡 After adding variables, you MUST redeploy for them to take effect!');
+    
+    // Don't throw in serverless - let the request handler show the error
+    // This allows the app to start and show helpful error messages
+    if (!process.env.VERCEL) {
+      throw new Error(errorMsg);
+    }
+    // In Vercel, we'll handle this in the request handler
   }
 }
 
