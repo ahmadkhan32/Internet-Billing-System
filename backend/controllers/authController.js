@@ -2,6 +2,7 @@ const User = require('../models/User');
 const ISP = require('../models/ISP');
 const generateToken = require('../utils/generateToken');
 const { validationResult } = require('express-validator');
+const { sequelize } = require('../config/db');
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
