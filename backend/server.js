@@ -84,21 +84,6 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static files (for invoice downloads)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Serve frontend static files in production (for Railway deployment)
-if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
-  const frontendBuildPath = path.join(__dirname, '../frontend/dist');
-  app.use(express.static(frontendBuildPath));
-  
-  // Serve React app for all non-API routes
-  app.get('*', (req, res) => {
-    // Don't serve frontend for API routes
-    if (req.path.startsWith('/api')) {
-      return res.status(404).json({ message: 'Route not found' });
-    }
-    res.sendFile(path.join(frontendBuildPath, 'index.html'));
-  });
-}
-
 // Database connection check middleware for serverless (before routes)
 // Only check on first request, allow routes to handle their own errors
 // Optimized for speed - no blocking checks
@@ -318,10 +303,22 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json(errorResponse);
 });
 
-// 404 handler (only for API routes, frontend routes handled above)
+// 404 handler for API routes
 app.use('/api', (req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
+
+// Serve frontend static files in production (for Railway deployment)
+// This must be AFTER all API routes
+if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
+  const frontendBuildPath = path.join(__dirname, '../frontend/dist');
+  app.use(express.static(frontendBuildPath));
+  
+  // Serve React app for all non-API routes
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(frontendBuildPath, 'index.html'));
+  });
+}
 
 // Export app for serverless functions (Vercel)
 // Only start server if not in serverless mode
