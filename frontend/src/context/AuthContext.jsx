@@ -85,7 +85,10 @@ export const AuthProvider = ({ children }) => {
       // Extract error message safely - prioritize server error messages
       let errorMessage = 'Login failed. Please check your credentials and try again.';
       
-      if (error.response?.data) {
+      // Check for default credentials hint in error message
+      if (error.response?.data?.message && error.response.data.message.includes('admin@billing.com')) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data) {
         const data = error.response.data;
         
         // Check for fatal server error (500)
