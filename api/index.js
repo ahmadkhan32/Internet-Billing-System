@@ -89,6 +89,23 @@ const getApp = () => {
 
 // Export as Vercel serverless function handler
 module.exports = async (req, res) => {
+  // Set timeout for the entire request (50 seconds to avoid 504)
+  const timeout = setTimeout(() => {
+    if (!res.headersSent) {
+      console.error('⏱️  Request timeout - responding with 504');
+      res.status(504).json({
+        message: 'Gateway Timeout',
+        error: 'The request took too long to process. This may be due to database connection issues.',
+        tips: [
+          'Check database connection settings',
+          'Verify database is accessible from Vercel',
+          'Check database firewall settings',
+          'Review Vercel function logs for more details'
+        ]
+      });
+    }
+  }, 50000); // 50 seconds timeout
+
   try {
     // Initialize app if not already done
     const expressApp = getApp();
@@ -96,7 +113,16 @@ module.exports = async (req, res) => {
     // Handle the request
     return new Promise((resolve, reject) => {
       try {
+        // Clear timeout when request completes
+        const originalEnd = res.end;
+        res.end = function(...args) {
+          clearTimeout(timeout);
+          return originalEnd.apply(this, args);
+        };
+
         expressApp(req, res, (err) => {
+          clearTimeout(timeout);
+          
           if (err) {
             console.error('Serverless function error:', err);
             console.error('Error stack:', err.stack);
@@ -120,6 +146,7 @@ module.exports = async (req, res) => {
           resolve();
         });
       } catch (handlerError) {
+        clearTimeout(timeout);
         console.error('Error in request handler:', handlerError);
         if (!res.headersSent) {
           res.status(500).json({
