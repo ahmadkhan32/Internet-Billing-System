@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "buildCommand": "cd backend && npm install --include=dev && cd ../frontend && npm install --include=dev && npm run build",
+  "buildCommand": "cd backend && npm install && cd ../frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
-  "installCommand": "cd backend && npm install --include=dev && cd ../frontend && npm install --include=dev",
+  "installCommand": "cd backend && npm install && cd ../frontend && npm install",
   "framework": "vite",
   "functions": {
     "api/index.js": {
