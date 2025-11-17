@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend",
+  "buildCommand": "bash build.sh",
   "outputDirectory": "frontend/dist",
   "installCommand": "npm install --prefix backend && npm install --prefix frontend",
   "framework": "vite",
