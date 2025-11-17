@@ -2,7 +2,6 @@ const User = require('../models/User');
 const ISP = require('../models/ISP');
 const generateToken = require('../utils/generateToken');
 const { validationResult } = require('express-validator');
-const ensureDefaultUsers = require('../utils/ensureDefaultUsers');
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -85,80 +84,58 @@ const login = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array() 
+      });
     }
 
     const { email, password, business_id } = req.body;
 
-    // Ensure default users exist (important for serverless/Vercel deployments)
-    // Check if any users exist, if not, create default users
-    const userCount = await User.count();
-    if (userCount === 0) {
-      console.log('⚠️  No users found in database. Creating default users...');
-      await ensureDefaultUsers();
-    }
+    console.log('🔐 Login attempt:', { email, hasPassword: !!password, hasBusinessId: !!business_id });
 
     // Find user
     const user = await User.findOne({ where: { email } });
     if (!user) {
-      // Try to ensure default users exist one more time (in case of race condition)
-      await ensureDefaultUsers();
-      const retryUser = await User.findOne({ where: { email } });
-      if (!retryUser) {
-        return res.status(401).json({ 
-          message: 'Invalid credentials. Default users: admin@billing.com / admin123' 
-        });
-      }
-      // Use the retry user
-      const isMatch = await retryUser.comparePassword(password);
-      if (!isMatch) {
-        return res.status(401).json({ message: 'Invalid credentials' });
-      }
-      // Continue with retryUser
-      retryUser.last_login = new Date();
-      await retryUser.save();
-      const token = generateToken(retryUser.id);
-      let ispInfo = null;
-      if (retryUser.isp_id) {
-        ispInfo = await ISP.findByPk(retryUser.isp_id);
-      }
-      return res.json({
-        success: true,
-        message: 'Login successful',
-        token,
-        user: {
-          id: retryUser.id,
-          name: retryUser.name,
-          email: retryUser.email,
-          role: retryUser.role,
-          isp_id: retryUser.isp_id,
-          isp: ispInfo
-        }
+      console.error(`❌ Login failed: User not found for email: ${email}`);
+      return res.status(401).json({ 
+        success: false,
+        message: 'Invalid credentials' 
       });
     }
 
     // Check password
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      console.error(`Login failed for ${email}: Invalid password`);
-      return res.status(401).json({ message: 'Invalid credentials' });
+      console.error(`❌ Login failed for ${email}: Invalid password`);
+      return res.status(401).json({ 
+        success: false,
+        message: 'Invalid credentials' 
+      });
     }
 
     // Check if user is active
     if (!user.is_active) {
-      return res.status(401).json({ message: 'Account is inactive' });
+      console.error(`❌ Login failed for ${email}: Account is inactive`);
+      return res.status(401).json({ 
+        success: false,
+        message: 'Account is inactive' 
+      });
     }
 
     // Validate Business ID if provided (for Business Admin login)
     if (business_id) {
       if (user.role !== 'admin') {
         return res.status(403).json({ 
+          success: false,
           message: 'Business ID login is only available for Business Admin accounts' 
         });
       }
 
       if (!user.isp_id) {
         return res.status(400).json({ 
+          success: false,
           message: 'Your account is not associated with a business. Please contact support.' 
         });
       }
@@ -167,6 +144,7 @@ const login = async (req, res) => {
       const isp = await ISP.findByPk(user.isp_id);
       if (!isp) {
         return res.status(400).json({ 
+          success: false,
           message: 'Business not found. Please contact support.' 
         });
       }
@@ -174,6 +152,7 @@ const login = async (req, res) => {
       // Check if Business ID matches
       if (isp.business_id && isp.business_id !== business_id) {
         return res.status(401).json({ 
+          success: false,
           message: 'Invalid Business ID. Please check and try again.' 
         });
       }
@@ -203,10 +182,11 @@ const login = async (req, res) => {
       ispInfo = await ISP.findByPk(user.isp_id);
     }
 
-    res.json({
+    // Ensure consistent response format
+    const responseData = {
       success: true,
       message: 'Login successful',
-      token,
+      token: token,
       user: {
         id: user.id,
         name: user.name,
@@ -215,7 +195,17 @@ const login = async (req, res) => {
         isp_id: user.isp_id,
         isp: ispInfo
       }
+    };
+    
+    console.log('✅ Login successful for:', email, 'Role:', user.role);
+    console.log('📦 Response data:', {
+      hasSuccess: !!responseData.success,
+      hasToken: !!responseData.token,
+      hasUser: !!responseData.user,
+      userId: responseData.user.id
     });
+    
+    res.json(responseData);
   } catch (error) {
     console.error('Login error:', error);
     console.error('Error stack:', error.stack);
@@ -280,6 +270,7 @@ const login = async (req, res) => {
     }
     
     const errorResponse = {
+      success: false,
       message: errorMessage,
       error: isDev ? error.message : errorMessage,
       name: error.name || 'Error'
@@ -295,6 +286,12 @@ const login = async (req, res) => {
         sqlMessage: error.sqlMessage
       };
     }
+    
+    console.error('❌ Login error response:', {
+      statusCode,
+      message: errorMessage,
+      errorName: error.name
+    });
     
     res.status(statusCode).json(errorResponse);
   }

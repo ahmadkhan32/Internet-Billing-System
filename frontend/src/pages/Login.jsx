@@ -18,17 +18,20 @@ const Login = () => {
     setLoading(true);
 
     try {
+      console.log('🚀 Login form submitted');
       const result = await login(email, password, businessId || undefined);
       
       if (result.success) {
+        console.log('✅ Login successful, redirecting to dashboard');
         // Redirect to dashboard - will be handled by App routing
         // Use window.location for reliable redirect
         window.location.href = '/dashboard';
       } else {
-        setError(result.message || 'Login failed. Please check your credentials.');
+        console.error('❌ Login failed:', result.message);
+        setError(result.message || 'Login failed. Please check your credentials and try again.');
       }
     } catch (err) {
-      console.error('Login error:', err);
+      console.error('❌ Unexpected login error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);

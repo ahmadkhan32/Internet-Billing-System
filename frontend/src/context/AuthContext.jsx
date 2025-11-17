@@ -46,26 +46,38 @@ export const AuthProvider = ({ children }) => {
       if (businessId) {
         loginData.business_id = businessId;
       }
+      
+      console.log('🔐 Attempting login for:', email);
       const response = await apiClient.post('/auth/login', loginData);
       
-      if (response.data.success && response.data.token && response.data.user) {
+      console.log('✅ Login response received:', {
+        hasSuccess: !!response.data?.success,
+        hasToken: !!response.data?.token,
+        hasUser: !!response.data?.user,
+        message: response.data?.message
+      });
+      
+      if (response.data && response.data.success && response.data.token && response.data.user) {
         const { token, user } = response.data;
         
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
         setUser(user);
         
+        console.log('✅ Login successful, user set:', user.email);
         return { success: true };
       } else {
+        console.error('❌ Invalid login response format:', response.data);
         return {
           success: false,
-          message: response.data.message || 'Login failed - invalid response'
+          message: response.data?.message || 'Login failed - invalid response format'
         };
       }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('❌ Login error:', error);
       console.error('Error response:', error.response?.data);
       console.error('Error status:', error.response?.status);
+      console.error('Error message:', error.message);
       
       // Handle network errors specifically
       if (!error.response) {
@@ -85,10 +97,7 @@ export const AuthProvider = ({ children }) => {
       // Extract error message safely - prioritize server error messages
       let errorMessage = 'Login failed. Please check your credentials and try again.';
       
-      // Check for default credentials hint in error message
-      if (error.response?.data?.message && error.response.data.message.includes('admin@billing.com')) {
-        errorMessage = error.response.data.message;
-      } else if (error.response?.data) {
+      if (error.response?.data) {
         const data = error.response.data;
         
         // Check for fatal server error (500)
