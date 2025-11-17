@@ -84,6 +84,21 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static files (for invoice downloads)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Serve frontend static files in production (for Railway deployment)
+if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
+  const frontendBuildPath = path.join(__dirname, '../frontend/dist');
+  app.use(express.static(frontendBuildPath));
+  
+  // Serve React app for all non-API routes
+  app.get('*', (req, res) => {
+    // Don't serve frontend for API routes
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ message: 'Route not found' });
+    }
+    res.sendFile(path.join(frontendBuildPath, 'index.html'));
+  });
+}
+
 // Database connection check middleware for serverless (before routes)
 // Only check on first request, allow routes to handle their own errors
 // Optimized for speed - no blocking checks
@@ -303,8 +318,8 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json(errorResponse);
 });
 
-// 404 handler
-app.use((req, res) => {
+// 404 handler (only for API routes, frontend routes handled above)
+app.use('/api', (req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
@@ -565,9 +580,13 @@ const startServer = async () => {
 
     // Start server only if not in serverless mode
     if (!isVercel) {
-      app.listen(PORT, () => {
-        console.log(`🚀 Server running on port ${PORT}`);
+      const port = process.env.PORT || PORT;
+      app.listen(port, '0.0.0.0', () => {
+        console.log(`🚀 Server running on port ${port}`);
         console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+        if (process.env.NODE_ENV === 'production') {
+          console.log(`🌐 Frontend served from: ${path.join(__dirname, '../frontend/dist')}`);
+        }
       });
     } else {
       console.log('🚀 Running in serverless mode (Vercel)');

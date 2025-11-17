@@ -3,9 +3,12 @@
   "version": "1.0.0",
   "description": "Internet Billing System",
   "private": true,
+  "main": "backend/server.js",
   "scripts": {
     "build": "npm install --include=dev --prefix backend && npm install --include=dev --prefix frontend && npm run build --prefix frontend",
-    "install:all": "npm install --include=dev --prefix backend && npm install --include=dev --prefix frontend"
+    "install:all": "npm install --include=dev --prefix backend && npm install --include=dev --prefix frontend",
+    "start": "cd backend && node server.js",
+    "dev": "cd backend && npm run dev"
   },
   "keywords": [
     "billing",
