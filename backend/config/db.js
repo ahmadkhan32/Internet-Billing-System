@@ -1,8 +1,17 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
-// Get database dialect from environment (default to postgres for Supabase)
-const dbDialect = process.env.DB_DIALECT || 'postgres';
+// Get database dialect from environment
+// Auto-detect Supabase if DB_HOST contains 'supabase'
+let dbDialect = process.env.DB_DIALECT;
+if (!dbDialect && process.env.DB_HOST && process.env.DB_HOST.includes('supabase')) {
+  dbDialect = 'postgres';
+  console.log('🔍 Auto-detected Supabase (PostgreSQL) from DB_HOST');
+}
+// Default to postgres for Supabase (cloud database)
+if (!dbDialect) {
+  dbDialect = 'postgres';
+}
 
 // If PostgreSQL is requested, use postgres config
 if (dbDialect === 'postgres') {
@@ -11,7 +20,25 @@ if (dbDialect === 'postgres') {
     return;
   } catch (error) {
     console.error('❌ Error loading PostgreSQL config:', error.message);
-    throw error;
+    // Don't throw - create a dummy sequelize instance so models can load
+    // Connection will fail later, but at least Sequelize will be defined
+    const { Sequelize } = require('sequelize');
+    try {
+      const dummySequelize = new Sequelize('postgres', 'postgres', '', {
+        host: 'localhost',
+        dialect: 'postgres',
+        logging: false,
+        retry: { max: 0 }
+      });
+      const testConnection = async () => {
+        throw new Error('PostgreSQL config failed to load. Check environment variables.');
+      };
+      module.exports = { sequelize: dummySequelize, testConnection };
+      return;
+    } catch (dummyError) {
+      // If even dummy creation fails, fall through to MySQL config
+      console.warn('⚠️  Could not create dummy PostgreSQL instance, falling back to MySQL');
+    }
   }
 }
 
