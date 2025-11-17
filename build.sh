@@ -2,17 +2,13 @@
 set -e
 
 echo "📦 Installing backend dependencies..."
-cd backend
-npm install --include=dev
-cd ..
+npm install --include=dev --prefix backend
 
 echo "📦 Installing frontend dependencies..."
-cd frontend
-npm install --include=dev
+npm install --include=dev --prefix frontend
 
 echo "🏗️  Building frontend..."
-npm run build
+npm run build --prefix frontend
 
 echo "✅ Build complete!"
-cd ..
 
