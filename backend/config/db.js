@@ -1,7 +1,21 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
-// Check if mysql2 is installed
+// Get database dialect from environment (default to mysql for backward compatibility)
+const dbDialect = process.env.DB_DIALECT || 'mysql';
+
+// If PostgreSQL is requested, use postgres config
+if (dbDialect === 'postgres') {
+  try {
+    module.exports = require('./db-postgres');
+    return;
+  } catch (error) {
+    console.error('❌ Error loading PostgreSQL config:', error.message);
+    throw error;
+  }
+}
+
+// Check if mysql2 is installed (for MySQL)
 try {
   require('mysql2');
 } catch (mysql2Error) {
