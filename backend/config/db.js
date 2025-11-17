@@ -127,15 +127,17 @@ const sequelize = new Sequelize(
     dialectOptions: {
       ...sslConfig,
       // Additional connection options
-      connectTimeout: 30000, // 30 seconds
+      // Reduce timeout for serverless - 10 seconds max
+      connectTimeout: process.env.VERCEL ? 10000 : 30000,
       // Support for timezone
       timezone: '+00:00',
     },
     pool: {
-      max: process.env.VERCEL ? 2 : 5, // Lower pool size for serverless
+      max: process.env.VERCEL ? 1 : 5, // Single connection for serverless
       min: 0,
-      acquire: 30000,
-      idle: 10000
+      // Reduce acquire timeout for serverless - 10 seconds max
+      acquire: process.env.VERCEL ? 10000 : 30000,
+      idle: process.env.VERCEL ? 5000 : 10000 // Shorter idle for serverless
     },
     // Add connection retry for serverless
     retry: {
@@ -162,7 +164,8 @@ const sequelize = new Sequelize(
 );
 
 // Test connection with retry logic
-const testConnection = async (retries = 2) => {
+// Reduce retries for serverless to avoid timeouts
+const testConnection = async (retries = process.env.VERCEL ? 1 : 2) => {
   try {
     // Check environment variables first
     // In local development, DB_PASSWORD can be empty (no password)
@@ -211,7 +214,10 @@ const testConnection = async (retries = 2) => {
       } catch (connError) {
         lastError = connError;
         if (attempt < retries) {
-          const delay = Math.pow(2, attempt) * 1000; // Exponential backoff: 1s, 2s, 4s
+          // Shorter delays for serverless
+          const delay = process.env.VERCEL 
+            ? 500 * (attempt + 1) // 500ms, 1000ms for serverless
+            : Math.pow(2, attempt) * 1000; // Exponential backoff: 1s, 2s, 4s for local
           console.warn(`⚠️  Connection attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
           await new Promise(resolve => setTimeout(resolve, delay));
         }

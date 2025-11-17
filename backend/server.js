@@ -86,32 +86,40 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Database connection check middleware for serverless (before routes)
 // Only check on first request, allow routes to handle their own errors
+// Optimized for speed - no blocking checks
 if (process.env.VERCEL) {
   let dbConnectionChecked = false;
   let dbConnectionStatus = null;
   
   app.use('/api', async (req, res, next) => {
-    // Skip health check - it handles its own connection check
-    if (req.path === '/health') {
+    // Skip health check and diagnostic - they handle their own connection check
+    if (req.path === '/health' || req.path === '/diagnose') {
       return next();
     }
     
     // Only check connection once, then cache the result
+    // Use a quick timeout to avoid blocking
     if (!dbConnectionChecked) {
+      dbConnectionChecked = true; // Set immediately to prevent concurrent checks
       try {
-        await sequelize.authenticate();
+        // Quick connection test with 3 second timeout
+        await Promise.race([
+          sequelize.authenticate(),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Connection check timeout')), 3000)
+          )
+        ]);
         dbConnectionStatus = true;
         console.log('✅ Database connection verified in serverless mode');
       } catch (error) {
         dbConnectionStatus = false;
-        console.error('⚠️  Database connection failed in serverless mode:', error.message);
+        console.warn('⚠️  Database connection check skipped (will connect on first query):', error.message);
         // Don't block - let routes handle the error
         // This allows the app to start even if DB is temporarily unavailable
       }
-      dbConnectionChecked = true;
     }
     
-    // Continue to route - routes will handle database errors
+    // Continue to route immediately - don't wait for connection
     next();
   });
 }

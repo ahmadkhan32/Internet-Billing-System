@@ -95,8 +95,13 @@ const login = async (req, res) => {
 
     console.log('🔐 Login attempt:', { email, hasPassword: !!password, hasBusinessId: !!business_id });
 
-    // Find user
-    const user = await User.findOne({ where: { email } });
+    // Find user with timeout protection for serverless
+    const user = await Promise.race([
+      User.findOne({ where: { email } }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Database query timeout')), 8000)
+      )
+    ]);
     if (!user) {
       console.error(`❌ Login failed: User not found for email: ${email}`);
       return res.status(401).json({ 
@@ -140,8 +145,13 @@ const login = async (req, res) => {
         });
       }
 
-      // Verify Business ID matches user's ISP
-      const isp = await ISP.findByPk(user.isp_id);
+      // Verify Business ID matches user's ISP with timeout
+      const isp = await Promise.race([
+        ISP.findByPk(user.isp_id),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Database query timeout')), 5000)
+        )
+      ]);
       if (!isp) {
         return res.status(400).json({ 
           success: false,
@@ -163,9 +173,21 @@ const login = async (req, res) => {
       }
     }
 
-    // Update last login
-    user.last_login = new Date();
-    await user.save();
+    // Update last login (with timeout for serverless)
+    try {
+      await Promise.race([
+        (async () => {
+          user.last_login = new Date();
+          await user.save();
+        })(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Save timeout')), 3000)
+        )
+      ]);
+    } catch (error) {
+      console.warn('⚠️  Could not update last_login (non-critical):', error.message);
+      // Continue - last_login update is not critical for login
+    }
 
     // Generate token
     let token;
@@ -176,10 +198,20 @@ const login = async (req, res) => {
       return res.status(500).json({ message: 'Server error: JWT_SECRET not configured', error: error.message });
     }
 
-    // Include ISP info if user belongs to an ISP
+    // Include ISP info if user belongs to an ISP (with timeout for serverless)
     let ispInfo = null;
     if (user.isp_id) {
-      ispInfo = await ISP.findByPk(user.isp_id);
+      try {
+        ispInfo = await Promise.race([
+          ISP.findByPk(user.isp_id),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('ISP query timeout')), 5000)
+          )
+        ]);
+      } catch (error) {
+        console.warn('⚠️  Could not fetch ISP info (non-critical):', error.message);
+        // Continue without ISP info - not critical for login
+      }
     }
 
     // Ensure consistent response format
