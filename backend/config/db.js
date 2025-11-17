@@ -116,7 +116,7 @@ if (isNgrok) {
 }
 
 const sequelize = new Sequelize(
-  dbName || 'billing_db',
+  dbName || 'internet_billing_db',
   dbUser || 'root',
   dbPassword || '',
   {
