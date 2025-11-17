@@ -52,10 +52,12 @@ if (useSSL) {
   console.log('🔒 SSL enabled for PostgreSQL connection (Supabase)');
 }
 
+// Always create sequelize instance, even with missing env vars
+// This ensures models can load (connection will fail later if vars are missing)
 const sequelize = new Sequelize(
   dbName || 'postgres',
   dbUser || 'postgres',
-  dbPassword,
+  dbPassword || '',
   {
     host: dbHost || 'localhost',
     port: dbPort,

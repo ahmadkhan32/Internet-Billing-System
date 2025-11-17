@@ -144,6 +144,8 @@ if (isNgrok) {
   console.log('🔒 SSL enabled for database connection (explicitly configured)');
 }
 
+// Always create sequelize instance, even with missing env vars
+// This ensures models can load (connection will fail later if vars are missing)
 const sequelize = new Sequelize(
   dbName || 'internet_billing_db',
   dbUser || 'root',
