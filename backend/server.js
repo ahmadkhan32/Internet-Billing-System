@@ -175,6 +175,25 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// Health check endpoint - simple status check
+app.get('/api/health', async (req, res) => {
+  try {
+    const dbStatus = await testConnection().catch(() => false);
+    res.json({
+      status: 'ok',
+      database: dbStatus ? 'connected' : 'disconnected',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'error',
+      database: 'disconnected',
+      error: error.message,
+      hint: 'Check environment variables: DB_HOST, DB_USER, DB_PASSWORD, DB_NAME'
+    });
+  }
+});
+
 // Diagnostic endpoint - provides detailed connection information
 app.get('/api/diagnose', async (req, res) => {
   const diagnostics = {
