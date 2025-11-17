@@ -46,12 +46,18 @@ if (missingVars.length > 0) {
     console.error('💡 Please set these in your Vercel project settings');
     console.error('💡 Go to: Vercel Dashboard → Settings → Environment Variables');
     console.error('💡 After adding variables, you MUST redeploy for them to take effect!');
+  } else if (process.env.RAILWAY_ENVIRONMENT) {
+    console.error('💡 Please set these in your Railway project settings');
+    console.error('💡 Go to: Railway Dashboard → Your Project → Variables');
+    console.error('💡 After adding variables, you MUST redeploy for them to take effect!');
   } else {
     console.error('💡 Please set these in your .env file');
     console.error('💡 Note: DB_PASSWORD can be empty (DB_PASSWORD=) if MySQL has no password');
   }
-  // Don't exit in serverless mode - let it fail gracefully on first request
-  if (!process.env.VERCEL) {
+  // Don't exit in production/serverless mode - let it fail gracefully on first request
+  if (process.env.VERCEL || process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production') {
+    console.warn('⚠️  Server will continue but database operations will fail');
+  } else {
     console.error('⚠️  Server will continue but database operations will fail');
   }
 }
@@ -63,8 +69,9 @@ const dbPassword = process.env.DB_PASSWORD;
 const dbHost = process.env.DB_HOST;
 const dbPort = process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 3306; // Default MySQL port
 
-// In Vercel, fail fast if variables are missing (don't try localhost)
-if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+// In production (Vercel or Railway), check for missing variables but don't crash
+// Allow the app to start and show helpful error messages on first request
+if (process.env.VERCEL || process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production') {
   const missing = [];
   if (!dbHost || dbHost.trim() === '') missing.push('DB_HOST');
   if (!dbUser || dbUser.trim() === '') missing.push('DB_USER');
@@ -73,18 +80,25 @@ if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
   if (!dbName || dbName.trim() === '') missing.push('DB_NAME');
   
   if (missing.length > 0) {
-    const errorMsg = `Missing required environment variables: ${missing.join(', ')}. Please set these in Vercel project settings.`;
+    const platform = process.env.VERCEL ? 'Vercel' : process.env.RAILWAY_ENVIRONMENT ? 'Railway' : 'production';
+    const errorMsg = `Missing required environment variables: ${missing.join(', ')}. Please set these in ${platform} project settings.`;
     console.error('❌', errorMsg);
-    console.error('💡 Go to: Vercel Dashboard → Settings → Environment Variables');
+    
+    if (process.env.VERCEL) {
+      console.error('💡 Go to: Vercel Dashboard → Settings → Environment Variables');
+    } else if (process.env.RAILWAY_ENVIRONMENT) {
+      console.error('💡 Go to: Railway Dashboard → Your Project → Variables');
+    } else {
+      console.error('💡 Set these environment variables in your deployment platform');
+    }
+    
     console.error('💡 See SET_ENV_VARIABLES_URGENT.md for step-by-step instructions');
     console.error('💡 After adding variables, you MUST redeploy for them to take effect!');
     
-    // Don't throw in serverless - let the request handler show the error
+    // Don't throw in production - let the request handler show the error
     // This allows the app to start and show helpful error messages
-    if (!process.env.VERCEL) {
-      throw new Error(errorMsg);
-    }
-    // In Vercel, we'll handle this in the request handler
+    // The database connection will fail gracefully on first request
+    console.warn('⚠️  Continuing without database connection - will fail on first database request');
   }
 }
 
