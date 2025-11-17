@@ -2,23 +2,20 @@ const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
 // Check if pg (PostgreSQL) is installed
+let pgAvailable = false;
 try {
   require('pg');
+  pgAvailable = true;
 } catch (pgError) {
   console.error('❌ pg package is not installed!');
   console.error('💡 Run: cd backend && npm install pg pg-hstore');
-  throw new Error('Please install pg and pg-hstore packages for PostgreSQL support.');
+  console.warn('⚠️  Creating dummy Sequelize instance - install pg package for PostgreSQL support');
+  // Don't throw - create dummy sequelize so models can load
+  pgAvailable = false;
 }
 
-// Get database dialect from environment (default to mysql for backward compatibility)
-const dbDialect = process.env.DB_DIALECT || 'mysql';
-
-// Only use this config if DB_DIALECT is postgres
-if (dbDialect !== 'postgres') {
-  // Fall back to regular db.js
-  module.exports = require('./db');
-  return;
-}
+// This file is only loaded when DB_DIALECT=postgres is set
+// No need to check dialect here - db.js handles the routing
 
 // Validate required environment variables
 const checkEnvVar = (varName) => {
@@ -54,15 +51,15 @@ if (useSSL) {
 
 // Always create sequelize instance, even with missing env vars
 // This ensures models can load (connection will fail later if vars are missing)
-const sequelize = new Sequelize(
-  dbName || 'postgres',
-  dbUser || 'postgres',
-  dbPassword || '',
-  {
+let sequelize;
+try {
+  const sequelizeConfig = {
+    database: dbName || 'postgres',
+    username: dbUser || 'postgres',
+    password: dbPassword || '',
     host: dbHost || 'localhost',
     port: dbPort,
     dialect: 'postgres',
-    dialectModule: require('pg'),
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
     dialectOptions: {
       ...sslConfig,
@@ -90,8 +87,39 @@ const sequelize = new Sequelize(
         /SequelizeConnectionTimedOutError/
       ]
     }
+  };
+
+  // Only add dialectModule if pg is available
+  if (pgAvailable) {
+    sequelizeConfig.dialectModule = require('pg');
   }
-);
+
+  sequelize = new Sequelize(
+    sequelizeConfig.database,
+    sequelizeConfig.username,
+    sequelizeConfig.password,
+    sequelizeConfig
+  );
+} catch (seqError) {
+  // If Sequelize creation fails, create a minimal instance
+  console.error('❌ Error creating Sequelize instance:', seqError.message);
+  console.warn('⚠️  Creating minimal Sequelize instance for model loading');
+  try {
+    sequelize = new Sequelize('postgres', 'postgres', '', {
+      host: 'localhost',
+      dialect: 'postgres',
+      logging: false,
+      retry: { max: 0 },
+      pool: { max: 0, min: 0 }
+    });
+  } catch (fallbackError) {
+    // Last resort: create with minimal config
+    sequelize = new Sequelize({
+      dialect: 'postgres',
+      logging: false
+    });
+  }
+}
 
 // Test connection with retry logic
 const testConnection = async (retries = 2) => {
