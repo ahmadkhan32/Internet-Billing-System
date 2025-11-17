@@ -442,140 +442,156 @@ const startServer = async () => {
     }
 
     // Create default ISPs if they don't exist
-    console.log('🌐 Creating default ISPs...');
-    const defaultISPs = [
-      {
-        name: 'ISP 1',
-        email: 'isp1@example.com',
-        contact: '+1234567890',
-        subscription_plan: 'premium',
-        subscription_status: 'active'
-      },
-      {
-        name: 'ISP 2',
-        email: 'isp2@example.com',
-        contact: '+1234567891',
-        subscription_plan: 'basic',
-        subscription_status: 'active'
-      }
-    ];
-
-    for (const ispData of defaultISPs) {
-      const existingISP = await ISP.findOne({ where: { email: ispData.email } });
-      if (!existingISP) {
-        try {
-          const isp = await ISP.create(ispData);
-          console.log(`   ✅ Created ISP: ${isp.name} (ID: ${isp.id})`);
-        } catch (error) {
-          console.error(`   ❌ Error creating ISP ${ispData.name}:`, error.message);
-        }
-      } else {
-        console.log(`   ℹ️  ISP already exists: ${ispData.name}`);
-      }
-    }
-
-    // Create default users for all roles if they don't exist
-    const defaultUsers = [
-      {
-        name: 'Super Admin',
-        email: 'admin@billing.com',
-        password: 'admin123',
-        role: 'super_admin',
-        isp_id: null
-      },
-      {
-        name: 'ISP Admin',
-        email: 'ispadmin@billing.com',
-        password: 'admin123',
-        role: 'admin',
-        isp_id: null // Will be assigned when ISP is created
-      },
-      {
-        name: 'Account Manager',
-        email: 'accountmanager@billing.com',
-        password: 'admin123',
-        role: 'account_manager',
-        isp_id: null
-      },
-      {
-        name: 'Technical Officer',
-        email: 'technical@billing.com',
-        password: 'admin123',
-        role: 'technical_officer',
-        isp_id: null
-      },
-      {
-        name: 'Recovery Officer',
-        email: 'recovery@billing.com',
-        password: 'admin123',
-        role: 'recovery_officer',
-        isp_id: null
-      },
-      {
-        name: 'Test Customer',
-        email: 'customer@billing.com',
-        password: 'admin123',
-        role: 'customer',
-        isp_id: null
-      }
-    ];
-
-    console.log('🔐 Creating default users...');
-    for (const userData of defaultUsers) {
-      const existingUser = await User.findOne({ where: { email: userData.email } });
-      if (!existingUser) {
-        try {
-          await User.create({
-            ...userData,
-            is_active: true
-          });
-          console.log(`✅ Created ${userData.role}: ${userData.email} / admin123`);
-        } catch (error) {
-          console.error(`❌ Error creating ${userData.role}:`, error.message);
-        }
-      } else {
-        console.log(`✅ ${userData.role} already exists: ${userData.email}`);
-      }
-    }
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('📋 Default Login Credentials:');
-    console.log('   All users use password: admin123');
-    console.log('   Super Admin: admin@billing.com');
-    console.log('   ISP Admin: ispadmin@billing.com');
-    console.log('   Account Manager: accountmanager@billing.com');
-    console.log('   Technical Officer: technical@billing.com');
-    console.log('   Recovery Officer: recovery@billing.com');
-    console.log('   Customer: customer@billing.com');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
-    // Initialize RBAC roles and permissions
-    console.log('🔐 Initializing RBAC system...');
+    // Wrap in try-catch to allow server to start even if database is unavailable
     try {
-      // Ensure Role and Permission tables exist
-      await Role.sync({ alter: true, force: false });
-      await Permission.sync({ alter: true, force: false });
-      const RolePermission = require('./models/RolePermission');
-      await RolePermission.sync({ alter: true, force: false });
-      
-      // Initialize default roles and permissions
-      await initializeRBAC();
-      console.log('✅ RBAC system initialized successfully');
-    } catch (rbacError) {
-      console.error('❌ Error initializing RBAC:', rbacError.message);
-      
-      // Check if it's the "Too many keys" error
-      if (rbacError.message && rbacError.message.includes('Too many keys')) {
-        console.error('\n🔧 Detected "Too many keys" error - this is a MySQL index limit issue.');
-        console.error('💡 Solution: Run the following command to fix the role_permissions table:');
-        console.error('   npm run fix:rbac');
-        console.error('   OR: cd backend && node utils/fixRolePermissionsTable.js');
-        console.error('\n⚠️  After running the fix, restart the server.');
-      } else {
-        console.error('❌ RBAC Error Stack:', rbacError.stack);
+      console.log('🌐 Creating default ISPs...');
+      const defaultISPs = [
+        {
+          name: 'ISP 1',
+          email: 'isp1@example.com',
+          contact: '+1234567890',
+          subscription_plan: 'premium',
+          subscription_status: 'active'
+        },
+        {
+          name: 'ISP 2',
+          email: 'isp2@example.com',
+          contact: '+1234567891',
+          subscription_plan: 'basic',
+          subscription_status: 'active'
+        }
+      ];
+
+      for (const ispData of defaultISPs) {
+        try {
+          const existingISP = await ISP.findOne({ where: { email: ispData.email } });
+          if (!existingISP) {
+            try {
+              const isp = await ISP.create(ispData);
+              console.log(`   ✅ Created ISP: ${isp.name} (ID: ${isp.id})`);
+            } catch (error) {
+              console.error(`   ❌ Error creating ISP ${ispData.name}:`, error.message);
+            }
+          } else {
+            console.log(`   ℹ️  ISP already exists: ${ispData.name}`);
+          }
+        } catch (error) {
+          console.error(`   ❌ Error checking ISP ${ispData.name}:`, error.message);
+        }
       }
-      
-      console.log('\n⚠️  Continuing without RBAC initialization...');
-      console.log('💡 You can manually initialize by calling POST /api/roles/initialize');
+
+      // Create default users for all roles if they don't exist
+      const defaultUsers = [
+        {
+          name: 'Super Admin',
+          email: 'admin@billing.com',
+          password: 'admin123',
+          role: 'super_admin',
+          isp_id: null
+        },
+        {
+          name: 'ISP Admin',
+          email: 'ispadmin@billing.com',
+          password: 'admin123',
+          role: 'admin',
+          isp_id: null // Will be assigned when ISP is created
+        },
+        {
+          name: 'Account Manager',
+          email: 'accountmanager@billing.com',
+          password: 'admin123',
+          role: 'account_manager',
+          isp_id: null
+        },
+        {
+          name: 'Technical Officer',
+          email: 'technical@billing.com',
+          password: 'admin123',
+          role: 'technical_officer',
+          isp_id: null
+        },
+        {
+          name: 'Recovery Officer',
+          email: 'recovery@billing.com',
+          password: 'admin123',
+          role: 'recovery_officer',
+          isp_id: null
+        },
+        {
+          name: 'Test Customer',
+          email: 'customer@billing.com',
+          password: 'admin123',
+          role: 'customer',
+          isp_id: null
+        }
+      ];
+
+      console.log('🔐 Creating default users...');
+      for (const userData of defaultUsers) {
+        try {
+          const existingUser = await User.findOne({ where: { email: userData.email } });
+          if (!existingUser) {
+            try {
+              await User.create({
+                ...userData,
+                is_active: true
+              });
+              console.log(`✅ Created ${userData.role}: ${userData.email} / admin123`);
+            } catch (error) {
+              console.error(`❌ Error creating ${userData.role}:`, error.message);
+            }
+          } else {
+            console.log(`✅ ${userData.role} already exists: ${userData.email}`);
+          }
+        } catch (error) {
+          console.error(`❌ Error checking user ${userData.email}:`, error.message);
+        }
+      }
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('📋 Default Login Credentials:');
+      console.log('   All users use password: admin123');
+      console.log('   Super Admin: admin@billing.com');
+      console.log('   ISP Admin: ispadmin@billing.com');
+      console.log('   Account Manager: accountmanager@billing.com');
+      console.log('   Technical Officer: technical@billing.com');
+      console.log('   Recovery Officer: recovery@billing.com');
+      console.log('   Customer: customer@billing.com');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+      // Initialize RBAC roles and permissions
+      console.log('🔐 Initializing RBAC system...');
+      try {
+        // Ensure Role and Permission tables exist
+        await Role.sync({ alter: true, force: false });
+        await Permission.sync({ alter: true, force: false });
+        const RolePermission = require('./models/RolePermission');
+        await RolePermission.sync({ alter: true, force: false });
+        
+        // Initialize default roles and permissions
+        await initializeRBAC();
+        console.log('✅ RBAC system initialized successfully');
+      } catch (rbacError) {
+        console.error('❌ Error initializing RBAC:', rbacError.message);
+        
+        // Check if it's the "Too many keys" error
+        if (rbacError.message && rbacError.message.includes('Too many keys')) {
+          console.error('\n🔧 Detected "Too many keys" error - this is a MySQL index limit issue.');
+          console.error('💡 Solution: Run the following command to fix the role_permissions table:');
+          console.error('   npm run fix:rbac');
+          console.error('   OR: cd backend && node utils/fixRolePermissionsTable.js');
+          console.error('\n⚠️  After running the fix, restart the server.');
+        } else {
+          console.error('❌ RBAC Error Stack:', rbacError.stack);
+        }
+        
+        console.log('\n⚠️  Continuing without RBAC initialization...');
+        console.log('💡 You can manually initialize by calling POST /api/roles/initialize');
+      }
+    } catch (defaultDataError) {
+      console.error('❌ Error creating default data:', defaultDataError.message);
+      console.warn('⚠️  Server will start but default data may not be created');
+      console.warn('💡 Make sure MySQL is running and database is accessible');
+      console.warn('💡 You can create default data later by running: npm run init-db');
     }
 
     // Initialize monthly scheduler (skip in serverless mode)
@@ -628,4 +644,3 @@ if (!isVercel) {
 
 // Export app for serverless functions
 module.exports = app;
-
