@@ -160,18 +160,20 @@ ON CONFLICT (name, business_id) DO NOTHING;
 -- Assign all permissions to super_admin
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT 
-  (SELECT id FROM roles WHERE name = 'super_admin'),
-  id
-FROM permissions
+  r.id,
+  p.id
+FROM permissions p
+CROSS JOIN (SELECT id FROM roles WHERE name = 'super_admin' AND business_id IS NULL LIMIT 1) r
 ON CONFLICT (role_id, permission_id) DO NOTHING;
 
 -- Assign permissions to admin role
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT 
-  (SELECT id FROM roles WHERE name = 'admin'),
-  id
-FROM permissions
-WHERE name IN (
+  r.id,
+  p.id
+FROM permissions p
+CROSS JOIN (SELECT id FROM roles WHERE name = 'admin' AND business_id IS NULL LIMIT 1) r
+WHERE p.name IN (
   'view_users', 'create_users', 'update_users', 'delete_users',
   'view_customers', 'create_customers', 'update_customers', 'delete_customers',
   'view_packages', 'create_packages', 'update_packages', 'delete_packages',
@@ -187,10 +189,11 @@ ON CONFLICT (role_id, permission_id) DO NOTHING;
 -- Assign permissions to account_manager role
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT 
-  (SELECT id FROM roles WHERE name = 'account_manager'),
-  id
-FROM permissions
-WHERE name IN (
+  r.id,
+  p.id
+FROM permissions p
+CROSS JOIN (SELECT id FROM roles WHERE name = 'account_manager' AND business_id IS NULL LIMIT 1) r
+WHERE p.name IN (
   'view_customers', 'create_customers', 'update_customers',
   'view_bills', 'create_bills', 'update_bills', 'generate_bills',
   'view_payments', 'create_payments', 'update_payments', 'approve_payments',
@@ -202,10 +205,11 @@ ON CONFLICT (role_id, permission_id) DO NOTHING;
 -- Assign permissions to technical_officer role
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT 
-  (SELECT id FROM roles WHERE name = 'technical_officer'),
-  id
-FROM permissions
-WHERE name IN (
+  r.id,
+  p.id
+FROM permissions p
+CROSS JOIN (SELECT id FROM roles WHERE name = 'technical_officer' AND business_id IS NULL LIMIT 1) r
+WHERE p.name IN (
   'view_customers',
   'view_installations', 'create_installations', 'update_installations',
   'view_notifications'
@@ -215,10 +219,11 @@ ON CONFLICT (role_id, permission_id) DO NOTHING;
 -- Assign permissions to recovery_officer role
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT 
-  (SELECT id FROM roles WHERE name = 'recovery_officer'),
-  id
-FROM permissions
-WHERE name IN (
+  r.id,
+  p.id
+FROM permissions p
+CROSS JOIN (SELECT id FROM roles WHERE name = 'recovery_officer' AND business_id IS NULL LIMIT 1) r
+WHERE p.name IN (
   'view_customers',
   'view_bills',
   'view_recoveries', 'create_recoveries', 'update_recoveries',
@@ -230,10 +235,11 @@ ON CONFLICT (role_id, permission_id) DO NOTHING;
 -- Assign permissions to marketing_officer role
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT 
-  (SELECT id FROM roles WHERE name = 'marketing_officer'),
-  id
-FROM permissions
-WHERE name IN (
+  r.id,
+  p.id
+FROM permissions p
+CROSS JOIN (SELECT id FROM roles WHERE name = 'marketing_officer' AND business_id IS NULL LIMIT 1) r
+WHERE p.name IN (
   'view_customers',
   'view_promotions', 'create_promotions', 'update_promotions', 'delete_promotions',
   'manage_campaigns',
@@ -245,10 +251,11 @@ ON CONFLICT (role_id, permission_id) DO NOTHING;
 -- Assign permissions to customer role
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT 
-  (SELECT id FROM roles WHERE name = 'customer'),
-  id
-FROM permissions
-WHERE name IN (
+  r.id,
+  p.id
+FROM permissions p
+CROSS JOIN (SELECT id FROM roles WHERE name = 'customer' AND business_id IS NULL LIMIT 1) r
+WHERE p.name IN (
   'view_bills',
   'view_payments',
   'view_notifications',
