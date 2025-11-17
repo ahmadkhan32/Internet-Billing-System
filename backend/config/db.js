@@ -296,12 +296,18 @@ const testConnection = async (retries = process.env.VERCEL ? 1 : 2) => {
       console.error('   5. For local MySQL, SSL is disabled by default');
     }
     
-    // In serverless mode, don't throw - let the request handler deal with it
-    if (process.env.VERCEL) {
+    // In serverless mode or local dev, don't throw - let the request handler deal with it
+    if (process.env.VERCEL || process.env.RAILWAY_ENVIRONMENT) {
       console.warn('⚠️  Continuing without database connection (serverless mode)');
       return false;
     }
-    throw error; // Re-throw in traditional server mode
+    // In local dev, return false instead of throwing to allow server to start
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('⚠️  Continuing without database connection (local development)');
+      console.warn('💡 Server will start but database operations will fail');
+      return false;
+    }
+    throw error; // Re-throw in production (non-serverless)
   }
 };
 

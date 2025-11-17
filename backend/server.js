@@ -336,9 +336,7 @@ const startServer = async () => {
         console.warn('⚠️  Database connection failed during startup (local development)');
         console.warn('💡 Server will start but database operations will fail');
         console.warn('💡 Make sure MySQL is running and .env file is configured');
-        console.warn('💡 Error:', dbError.message);
         // Don't crash in local dev - allow server to start
-        // Database will be checked on first request
       }
     } else {
       // In serverless mode, just try to authenticate without throwing
