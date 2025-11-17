@@ -100,8 +100,36 @@ export const AuthProvider = ({ children }) => {
       if (error.response?.data) {
         const data = error.response.data;
         
+        // Check for database connection error (503)
+        if (error.response?.status === 503 && data.message && data.message.includes('Database connection')) {
+          errorMessage = data.message || 'Database connection failed.';
+          
+          // Add missing variables if provided
+          if (data.missingVariables && Array.isArray(data.missingVariables) && data.missingVariables.length > 0) {
+            errorMessage += `\n\nMissing environment variables: ${data.missingVariables.join(', ')}`;
+            errorMessage += '\n\nPlease set these in Vercel Dashboard → Settings → Environment Variables';
+          }
+          
+          // Add troubleshooting steps if provided
+          if (data.troubleshooting && Array.isArray(data.troubleshooting) && data.troubleshooting.length > 0) {
+            errorMessage += '\n\nTroubleshooting steps:';
+            data.troubleshooting.forEach((step, index) => {
+              errorMessage += `\n${index + 1}. ${step}`;
+            });
+          }
+          
+          // Add hint if provided
+          if (data.hint) {
+            errorMessage += `\n\n💡 ${data.hint}`;
+          }
+          
+          // Add error details in development
+          if (data.error && (process.env.NODE_ENV === 'development' || window.location.hostname.includes('localhost'))) {
+            errorMessage += `\n\nTechnical details: ${data.error}`;
+          }
+        }
         // Check for fatal server error (500)
-        if (data.message && data.message.includes('Fatal server error')) {
+        else if (data.message && data.message.includes('Fatal server error')) {
           errorMessage = 'Server initialization error. Please check:\n' +
             '1. Environment variables are set in Vercel\n' +
             '2. Database connection is configured\n' +

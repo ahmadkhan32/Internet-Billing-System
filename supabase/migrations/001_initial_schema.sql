@@ -4,19 +4,78 @@
 -- Enable UUID extension (if needed)
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Create ENUM types
-CREATE TYPE user_role_enum AS ENUM ('super_admin', 'admin', 'account_manager', 'technical_officer', 'recovery_officer', 'customer');
-CREATE TYPE customer_status_enum AS ENUM ('active', 'inactive', 'suspended', 'disconnected');
-CREATE TYPE bill_status_enum AS ENUM ('pending', 'paid', 'partial', 'overdue', 'cancelled');
-CREATE TYPE payment_method_enum AS ENUM ('cash', 'card', 'online', 'bank_transfer', 'jazzcash', 'easypaisa');
-CREATE TYPE payment_status_enum AS ENUM ('pending', 'completed', 'failed', 'refunded');
-CREATE TYPE recovery_status_enum AS ENUM ('pending', 'completed', 'failed', 'cancelled');
-CREATE TYPE installation_status_enum AS ENUM ('pending', 'scheduled', 'in_progress', 'completed', 'cancelled');
-CREATE TYPE notification_type_enum AS ENUM ('bill_generated', 'bill_due', 'payment_received', 'service_suspended', 'service_reactivated', 'installation_scheduled', 'general');
-CREATE TYPE notification_channel_enum AS ENUM ('email', 'sms', 'both');
-CREATE TYPE subscription_plan_enum AS ENUM ('basic', 'premium', 'enterprise');
-CREATE TYPE subscription_status_enum AS ENUM ('active', 'suspended', 'cancelled', 'pending', 'expired');
-CREATE TYPE package_status_enum AS ENUM ('active', 'inactive', 'archived');
+-- Create ENUM types (only if they don't exist)
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role_enum') THEN
+        CREATE TYPE user_role_enum AS ENUM ('super_admin', 'admin', 'account_manager', 'technical_officer', 'recovery_officer', 'customer');
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'customer_status_enum') THEN
+        CREATE TYPE customer_status_enum AS ENUM ('active', 'inactive', 'suspended', 'disconnected');
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'bill_status_enum') THEN
+        CREATE TYPE bill_status_enum AS ENUM ('pending', 'paid', 'partial', 'overdue', 'cancelled');
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payment_method_enum') THEN
+        CREATE TYPE payment_method_enum AS ENUM ('cash', 'card', 'online', 'bank_transfer', 'jazzcash', 'easypaisa');
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payment_status_enum') THEN
+        CREATE TYPE payment_status_enum AS ENUM ('pending', 'completed', 'failed', 'refunded');
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'recovery_status_enum') THEN
+        CREATE TYPE recovery_status_enum AS ENUM ('pending', 'completed', 'failed', 'cancelled');
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'installation_status_enum') THEN
+        CREATE TYPE installation_status_enum AS ENUM ('pending', 'scheduled', 'in_progress', 'completed', 'cancelled');
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'notification_type_enum') THEN
+        CREATE TYPE notification_type_enum AS ENUM ('bill_generated', 'bill_due', 'payment_received', 'service_suspended', 'service_reactivated', 'installation_scheduled', 'general');
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'notification_channel_enum') THEN
+        CREATE TYPE notification_channel_enum AS ENUM ('email', 'sms', 'both');
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'subscription_plan_enum') THEN
+        CREATE TYPE subscription_plan_enum AS ENUM ('basic', 'premium', 'enterprise');
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'subscription_status_enum') THEN
+        CREATE TYPE subscription_status_enum AS ENUM ('active', 'suspended', 'cancelled', 'pending', 'expired');
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'package_status_enum') THEN
+        CREATE TYPE package_status_enum AS ENUM ('active', 'inactive', 'archived');
+    END IF;
+END $$;
 
 -- Table: saas_packages (must be first as it's referenced by isps)
 CREATE TABLE IF NOT EXISTS saas_packages (
@@ -280,6 +339,20 @@ BEGIN
   RETURN NEW;
 END;
 $$ language 'plpgsql';
+
+-- Drop existing triggers if they exist, then create new ones
+DROP TRIGGER IF EXISTS update_saas_packages_updated_at ON saas_packages;
+DROP TRIGGER IF EXISTS update_isps_updated_at ON isps;
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
+DROP TRIGGER IF EXISTS update_packages_updated_at ON packages;
+DROP TRIGGER IF EXISTS update_customers_updated_at ON customers;
+DROP TRIGGER IF EXISTS update_bills_updated_at ON bills;
+DROP TRIGGER IF EXISTS update_payments_updated_at ON payments;
+DROP TRIGGER IF EXISTS update_recoveries_updated_at ON recoveries;
+DROP TRIGGER IF EXISTS update_installations_updated_at ON installations;
+DROP TRIGGER IF EXISTS update_notifications_updated_at ON notifications;
+DROP TRIGGER IF EXISTS update_permissions_updated_at ON permissions;
+DROP TRIGGER IF EXISTS update_roles_updated_at ON roles;
 
 -- Add triggers for updated_at
 CREATE TRIGGER update_saas_packages_updated_at BEFORE UPDATE ON saas_packages FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

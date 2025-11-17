@@ -1,8 +1,8 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
-// Get database dialect from environment (default to mysql for backward compatibility)
-const dbDialect = process.env.DB_DIALECT || 'mysql';
+// Get database dialect from environment (default to postgres for Supabase)
+const dbDialect = process.env.DB_DIALECT || 'postgres';
 
 // If PostgreSQL is requested, use postgres config
 if (dbDialect === 'postgres') {
@@ -122,7 +122,8 @@ if (process.env.VERCEL || process.env.RAILWAY_ENVIRONMENT || process.env.NODE_EN
 const sslConfig = {};
 const useSSL = process.env.DB_SSL !== 'false'; // Default to true unless explicitly disabled
 const isNgrok = dbHost?.includes('ngrok.io') || dbHost?.includes('ngrok-free.app');
-const isCloudDatabase = dbHost?.includes('.psdb.cloud') || dbHost?.includes('.rds.amazonaws.com') || dbHost?.includes('.railway.app');
+// PlanetScale and other cloud databases require SSL
+const isCloudDatabase = dbHost?.includes('.psdb.cloud') || dbHost?.includes('.rds.amazonaws.com') || dbHost?.includes('.railway.app') || dbHost?.includes('planetscale.com');
 
 if (isNgrok) {
   // ngrok tunnels don't support SSL for TCP connections

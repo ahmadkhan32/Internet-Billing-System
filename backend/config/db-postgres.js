@@ -67,10 +67,10 @@ const sequelize = new Sequelize(
       // PostgreSQL specific options
     },
     pool: {
-      max: process.env.VERCEL ? 1 : 5,
+      max: process.env.VERCEL ? 1 : 5, // Single connection for serverless
       min: 0,
-      acquire: process.env.VERCEL ? 15000 : 30000,
-      idle: process.env.VERCEL ? 5000 : 10000
+      acquire: process.env.VERCEL ? 10000 : 30000, // Faster timeout for serverless
+      idle: process.env.VERCEL ? 5000 : 10000 // Shorter idle for serverless
     },
     retry: {
       max: 3,
@@ -143,11 +143,50 @@ const testConnection = async (retries = 2) => {
     console.error('   Error Code:', error.code);
     
     console.error('\n💡 Troubleshooting:');
-    console.error('   1. Check Supabase project settings');
-    console.error('   2. Verify database credentials');
-    console.error('   3. Ensure SSL is enabled (required for Supabase)');
-    console.error('   4. Check database firewall settings');
-    console.error('   5. Verify connection string format');
+    if (process.env.VERCEL) {
+      console.error('   Vercel Deployment:');
+      console.error('   1. ✅ Check environment variables in Vercel project settings');
+      console.error('   2. ✅ Verify Supabase database credentials are correct');
+      console.error('   3. ✅ Ensure SSL is enabled (DB_SSL=true)');
+      console.error('   4. ✅ Check Supabase project is active (not paused)');
+      console.error('   5. ✅ Verify connection string format from Supabase Dashboard');
+      console.error('   6. ✅ For connection pooling, use port 6543 instead of 5432');
+      
+      // Provide specific guidance based on error
+      if (error.message.includes('SSL') || error.message.includes('certificate')) {
+        console.error('\n   🔒 SSL/TLS Issues:');
+        console.error('   - Supabase requires SSL connections');
+        console.error('   - Ensure DB_SSL=true and DB_SSL_REJECT_UNAUTHORIZED=false');
+        console.error('   - Check Supabase connection string includes SSL parameters');
+      }
+      
+      if (error.message.includes('ECONNREFUSED') || error.message.includes('timeout')) {
+        console.error('\n   🌐 Network/Firewall Issues:');
+        console.error('   - Supabase allows connections from anywhere by default');
+        console.error('   - Verify database host is correct (db.xxxxx.supabase.co)');
+        console.error('   - Check if Supabase project is paused (free tier)');
+        console.error('   - Try using connection pooling port 6543');
+      }
+      
+      if (error.message.includes('password') || error.message.includes('authentication')) {
+        console.error('\n   🔐 Authentication Issues:');
+        console.error('   - Verify DB_USER and DB_PASSWORD are correct');
+        console.error('   - Get password from Supabase Dashboard → Settings → Database');
+        console.error('   - Password is shown only once when project is created');
+      }
+    } else {
+      console.error('   1. Check Supabase project settings');
+      console.error('   2. Verify database credentials');
+      console.error('   3. Ensure SSL is enabled (required for Supabase)');
+      console.error('   4. Check database firewall settings');
+      console.error('   5. Verify connection string format');
+    }
+    
+    // In serverless mode, don't throw - let the request handler deal with it
+    if (process.env.VERCEL || process.env.RAILWAY_ENVIRONMENT) {
+      console.warn('⚠️  Continuing without database connection (serverless mode)');
+      return false;
+    }
     
     if (process.env.NODE_ENV !== 'production') {
       console.warn('⚠️  Continuing without database connection (local development)');

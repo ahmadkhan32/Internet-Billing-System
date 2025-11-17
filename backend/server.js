@@ -185,11 +185,22 @@ app.get('/api/health', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
+    const missingVars = [];
+    if (!process.env.DB_HOST) missingVars.push('DB_HOST');
+    if (!process.env.DB_USER) missingVars.push('DB_USER');
+    if (!process.env.DB_PASSWORD) missingVars.push('DB_PASSWORD');
+    if (!process.env.DB_NAME) missingVars.push('DB_NAME');
+    if (!process.env.DB_DIALECT) missingVars.push('DB_DIALECT');
+    
     res.status(503).json({
       status: 'error',
       database: 'disconnected',
       error: error.message,
-      hint: 'Check environment variables: DB_HOST, DB_USER, DB_PASSWORD, DB_NAME'
+      hint: missingVars.length > 0 
+        ? `Missing environment variables: ${missingVars.join(', ')}. Set these in Vercel Dashboard → Settings → Environment Variables`
+        : 'Check environment variables: DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_DIALECT',
+      help: 'See SIMPLE_SUPABASE_SETUP.md for setup instructions',
+      note: 'Even with Supabase cloud database, you must set connection credentials in Vercel environment variables'
     });
   }
 });
