@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "Internet Billing System",
   "private": true,
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build",
+    "install:all": "npm install --prefix backend && npm install --prefix frontend"
+  },
   "keywords": [
     "billing",
     "saas",
@@ -11,4 +15,3 @@
   "author": "",
   "license": "ISC"
 }
-
