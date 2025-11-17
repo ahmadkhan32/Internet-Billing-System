@@ -61,6 +61,7 @@ const dbName = process.env.DB_NAME;
 const dbUser = process.env.DB_USER;
 const dbPassword = process.env.DB_PASSWORD;
 const dbHost = process.env.DB_HOST;
+const dbPort = process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 3306; // Default MySQL port
 
 // In Vercel, fail fast if variables are missing (don't try localhost)
 if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
@@ -89,10 +90,16 @@ if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
 
 // Configure SSL for cloud databases
 // Most cloud databases (PlanetScale, AWS RDS, etc.) require SSL
+// ngrok tunnels don't use SSL, so disable for ngrok hosts
 const sslConfig = {};
 const useSSL = process.env.DB_SSL !== 'false'; // Default to true unless explicitly disabled
+const isNgrok = dbHost?.includes('ngrok.io') || dbHost?.includes('ngrok-free.app');
+const isCloudDatabase = dbHost?.includes('.psdb.cloud') || dbHost?.includes('.rds.amazonaws.com') || dbHost?.includes('.railway.app');
 
-if (useSSL && (process.env.VERCEL || process.env.NODE_ENV === 'production' || dbHost?.includes('.psdb.cloud') || dbHost?.includes('.rds.amazonaws.com') || dbHost?.includes('.railway.app'))) {
+if (isNgrok) {
+  // ngrok tunnels don't support SSL for TCP connections
+  console.log('🌐 ngrok tunnel detected - SSL disabled');
+} else if (useSSL && (process.env.VERCEL || process.env.NODE_ENV === 'production' || isCloudDatabase)) {
   // Cloud databases typically require SSL
   sslConfig.ssl = {
     rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false', // Default to true for security
@@ -114,6 +121,7 @@ const sequelize = new Sequelize(
   dbPassword || '',
   {
     host: dbHost || 'localhost',
+    port: dbPort,
     dialect: 'mysql',
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
     dialectOptions: {
