@@ -96,12 +96,37 @@ const login = async (req, res) => {
     console.log('🔐 Login attempt:', { email, hasPassword: !!password, hasBusinessId: !!business_id });
 
     // Find user with timeout protection for serverless
-    const user = await Promise.race([
-      User.findOne({ where: { email } }),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Database query timeout')), 8000)
-      )
-    ]);
+    // First, ensure database connection is ready
+    try {
+      await sequelize.authenticate();
+    } catch (connError) {
+      console.error('❌ Database connection failed before query:', connError.message);
+      return res.status(503).json({
+        success: false,
+        message: 'Database connection failed. Please check your database configuration.',
+        error: connError.message,
+        hint: 'Check environment variables: DB_HOST, DB_USER, DB_PASSWORD, DB_NAME'
+      });
+    }
+
+    // Find user with timeout protection (increased to 15s for slow connections)
+    let user;
+    try {
+      user = await Promise.race([
+        User.findOne({ where: { email } }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Database query timeout - user lookup took too long')), 15000)
+        )
+      ]);
+    } catch (timeoutError) {
+      console.error('❌ User query timeout:', timeoutError.message);
+      return res.status(504).json({
+        success: false,
+        message: 'Database query timeout. The database is responding slowly.',
+        error: timeoutError.message,
+        hint: 'This might indicate network latency or database performance issues. Please try again or check database status.'
+      });
+    }
     if (!user) {
       console.error(`❌ Login failed: User not found for email: ${email}`);
       return res.status(401).json({ 
@@ -145,13 +170,24 @@ const login = async (req, res) => {
         });
       }
 
-      // Verify Business ID matches user's ISP with timeout
-      const isp = await Promise.race([
-        ISP.findByPk(user.isp_id),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Database query timeout')), 5000)
-        )
-      ]);
+      // Verify Business ID matches user's ISP with timeout (increased to 10s)
+      let isp;
+      try {
+        isp = await Promise.race([
+          ISP.findByPk(user.isp_id),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Database query timeout - ISP lookup took too long')), 10000)
+          )
+        ]);
+      } catch (timeoutError) {
+        console.error('❌ ISP query timeout:', timeoutError.message);
+        return res.status(504).json({
+          success: false,
+          message: 'Database query timeout while verifying Business ID.',
+          error: timeoutError.message,
+          hint: 'Please try again or contact support if the issue persists.'
+        });
+      }
       if (!isp) {
         return res.status(400).json({ 
           success: false,
@@ -173,7 +209,7 @@ const login = async (req, res) => {
       }
     }
 
-    // Update last login (with timeout for serverless)
+    // Update last login (with timeout for serverless - non-critical)
     try {
       await Promise.race([
         (async () => {
@@ -181,7 +217,7 @@ const login = async (req, res) => {
           await user.save();
         })(),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Save timeout')), 3000)
+          setTimeout(() => reject(new Error('Save timeout')), 5000)
         )
       ]);
     } catch (error) {
@@ -199,18 +235,20 @@ const login = async (req, res) => {
     }
 
     // Include ISP info if user belongs to an ISP (with timeout for serverless)
+    // This is non-critical, so we use a shorter timeout and continue on failure
     let ispInfo = null;
     if (user.isp_id) {
       try {
         ispInfo = await Promise.race([
           ISP.findByPk(user.isp_id),
           new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('ISP query timeout')), 5000)
+            setTimeout(() => reject(new Error('ISP info query timeout')), 8000)
           )
         ]);
       } catch (error) {
         console.warn('⚠️  Could not fetch ISP info (non-critical):', error.message);
         // Continue without ISP info - not critical for login
+        ispInfo = null;
       }
     }
 

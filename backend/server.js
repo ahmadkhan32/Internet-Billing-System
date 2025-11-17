@@ -102,11 +102,11 @@ if (process.env.VERCEL) {
     if (!dbConnectionChecked) {
       dbConnectionChecked = true; // Set immediately to prevent concurrent checks
       try {
-        // Quick connection test with 3 second timeout
+        // Quick connection test with 5 second timeout (increased for slow connections)
         await Promise.race([
           sequelize.authenticate(),
           new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Connection check timeout')), 3000)
+            setTimeout(() => reject(new Error('Connection check timeout')), 5000)
           )
         ]);
         dbConnectionStatus = true;

@@ -127,16 +127,16 @@ const sequelize = new Sequelize(
     dialectOptions: {
       ...sslConfig,
       // Additional connection options
-      // Reduce timeout for serverless - 10 seconds max
-      connectTimeout: process.env.VERCEL ? 10000 : 30000,
+      // Reduce timeout for serverless - 15 seconds max (increased for slow connections)
+      connectTimeout: process.env.VERCEL ? 15000 : 30000,
       // Support for timezone
       timezone: '+00:00',
     },
     pool: {
       max: process.env.VERCEL ? 1 : 5, // Single connection for serverless
       min: 0,
-      // Reduce acquire timeout for serverless - 10 seconds max
-      acquire: process.env.VERCEL ? 10000 : 30000,
+      // Reduce acquire timeout for serverless - 15 seconds max (increased for slow connections)
+      acquire: process.env.VERCEL ? 15000 : 30000,
       idle: process.env.VERCEL ? 5000 : 10000 // Shorter idle for serverless
     },
     // Add connection retry for serverless
