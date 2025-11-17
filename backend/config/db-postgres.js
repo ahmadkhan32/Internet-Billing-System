@@ -9,8 +9,8 @@ try {
 } catch (pgError) {
   console.error('❌ pg package is not installed!');
   console.error('💡 Run: cd backend && npm install pg pg-hstore');
-  console.warn('⚠️  Creating dummy Sequelize instance - install pg package for PostgreSQL support');
-  // Don't throw - create dummy sequelize so models can load
+  console.warn('⚠️  Creating Sequelize instance without pg - install pg for PostgreSQL support');
+  // Don't throw - create sequelize instance anyway so models can load
   pgAvailable = false;
 }
 
@@ -225,6 +225,24 @@ const testConnection = async (retries = 2) => {
     throw error;
   }
 };
+
+// Ensure sequelize is always defined before exporting
+if (!sequelize) {
+  console.error('❌ CRITICAL: Sequelize instance is undefined! Creating fallback instance.');
+  try {
+    sequelize = new Sequelize({
+      dialect: 'postgres',
+      logging: false
+    });
+  } catch (finalError) {
+    // Absolute last resort - create empty Sequelize
+    const { Sequelize: SequelizeClass } = require('sequelize');
+    sequelize = new SequelizeClass({
+      dialect: 'postgres',
+      logging: false
+    });
+  }
+}
 
 module.exports = { sequelize, testConnection };
 

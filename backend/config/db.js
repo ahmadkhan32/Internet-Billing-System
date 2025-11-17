@@ -355,5 +355,23 @@ const testConnection = async (retries = process.env.VERCEL ? 1 : 2) => {
   }
 };
 
+// Ensure sequelize is always defined before exporting
+if (!sequelize) {
+  console.error('❌ CRITICAL: Sequelize instance is undefined! Creating fallback instance.');
+  try {
+    sequelize = new Sequelize({
+      dialect: 'mysql',
+      logging: false
+    });
+  } catch (finalError) {
+    // Absolute last resort
+    const { Sequelize: SequelizeClass } = require('sequelize');
+    sequelize = new SequelizeClass({
+      dialect: 'mysql',
+      logging: false
+    });
+  }
+}
+
 module.exports = { sequelize, testConnection };
 
