@@ -328,8 +328,18 @@ const isVercel = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
 const startServer = async () => {
   try {
     // Test database connection (skip in serverless mode during initialization)
+    // In local dev, allow server to start even if DB is not available
     if (!isVercel) {
-      await testConnection();
+      try {
+        await testConnection();
+      } catch (dbError) {
+        console.warn('⚠️  Database connection failed during startup (local development)');
+        console.warn('💡 Server will start but database operations will fail');
+        console.warn('💡 Make sure MySQL is running and .env file is configured');
+        console.warn('💡 Error:', dbError.message);
+        // Don't crash in local dev - allow server to start
+        // Database will be checked on first request
+      }
     } else {
       // In serverless mode, just try to authenticate without throwing
       try {
