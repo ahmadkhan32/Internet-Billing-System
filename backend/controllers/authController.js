@@ -2,6 +2,7 @@ const User = require('../models/User');
 const ISP = require('../models/ISP');
 const generateToken = require('../utils/generateToken');
 const { validationResult } = require('express-validator');
+const ensureDefaultUsers = require('../utils/ensureDefaultUsers');
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -89,10 +90,51 @@ const login = async (req, res) => {
 
     const { email, password, business_id } = req.body;
 
+    // Ensure default users exist (important for serverless/Vercel deployments)
+    // Check if any users exist, if not, create default users
+    const userCount = await User.count();
+    if (userCount === 0) {
+      console.log('⚠️  No users found in database. Creating default users...');
+      await ensureDefaultUsers();
+    }
+
     // Find user
     const user = await User.findOne({ where: { email } });
     if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      // Try to ensure default users exist one more time (in case of race condition)
+      await ensureDefaultUsers();
+      const retryUser = await User.findOne({ where: { email } });
+      if (!retryUser) {
+        return res.status(401).json({ 
+          message: 'Invalid credentials. Default users: admin@billing.com / admin123' 
+        });
+      }
+      // Use the retry user
+      const isMatch = await retryUser.comparePassword(password);
+      if (!isMatch) {
+        return res.status(401).json({ message: 'Invalid credentials' });
+      }
+      // Continue with retryUser
+      retryUser.last_login = new Date();
+      await retryUser.save();
+      const token = generateToken(retryUser.id);
+      let ispInfo = null;
+      if (retryUser.isp_id) {
+        ispInfo = await ISP.findByPk(retryUser.isp_id);
+      }
+      return res.json({
+        success: true,
+        message: 'Login successful',
+        token,
+        user: {
+          id: retryUser.id,
+          name: retryUser.name,
+          email: retryUser.email,
+          role: retryUser.role,
+          isp_id: retryUser.isp_id,
+          isp: ispInfo
+        }
+      });
     }
 
     // Check password
