@@ -94,10 +94,13 @@ export const AuthProvider = ({ children }) => {
         };
       }
       
-      // Extract error message safely - prioritize server error messages
+      // Extract error message safely - prioritize userMessage from apiClient, then server error messages
       let errorMessage = 'Login failed. Please check your credentials and try again.';
       
-      if (error.response?.data) {
+      // First, check if apiClient set a userMessage (for 500, 503, 404, etc.)
+      if (error.userMessage) {
+        errorMessage = error.userMessage;
+      } else if (error.response?.data) {
         const data = error.response.data;
         
         // Check for database connection error (503)
@@ -172,8 +175,8 @@ export const AuthProvider = ({ children }) => {
         errorMessage = error.message;
       }
       
-      // For 500 errors, add more context
-      if (error.response?.status === 500) {
+      // For 500 errors, add more context (only if userMessage wasn't already set by apiClient)
+      if (error.response?.status === 500 && !error.userMessage) {
         errorMessage = `Server error: ${errorMessage}\n\nPlease check:\n` +
           '1. Backend is running correctly\n' +
           '2. Database connection is working\n' +

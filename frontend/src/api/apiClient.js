@@ -64,14 +64,14 @@ apiClient.interceptors.response.use(
               ? API_BASE_URL.replace(/\/[^\/]+$/, '/api')
               : '/api') + '\n\n' +
             'Fix: In Vercel, set VITE_API_BASE_URL to:\n' +
-            '- If separate backend: https://your-backend.vercel.app/api\n' +
+            '- If separate backend: https://internet-billing-system.vercel.app/api\n' +
             '- If combined: /api (or leave empty)';
         }
         
         if (errorMsg.includes('Route not found') || errorMsg.includes('API route not found')) {
           error.userMessage = 'Backend API route not found. Please check:\n' +
             '1. VITE_API_BASE_URL is set correctly in Vercel\n' +
-            '   - Should end with /api (e.g., https://backend.vercel.app/api)\n' +
+            '   - Should end with /api (e.g., https://internet-billing-system.vercel.app/api)\n' +
             '   - OR use /api for same-domain deployment\n' +
             '2. Backend is deployed and accessible\n' +
             '3. API routes are configured correctly\n\n' +
@@ -82,13 +82,52 @@ apiClient.interceptors.response.use(
         }
       }
       
-      // For 500 errors, preserve the error details
+      // For 500 errors, preserve the error details and set user message
       if (error.response.status === 500) {
         console.error('Server Error Details:', {
           message: error.response.data?.message,
           error: error.response.data?.error,
           environment: error.response.data?.environment
         });
+        
+        // Set user-friendly error message for 500 errors
+        const serverMessage = error.response.data?.message || 'Server error occurred';
+        let userMessage = serverMessage;
+        
+        // Check for specific error types
+        if (serverMessage.includes('Cannot find module') || serverMessage.includes('Server initialization error')) {
+          userMessage = 'Server initialization error. Please check:\n' +
+            '1. Environment variables are set in Vercel\n' +
+            '2. Database connection is configured\n' +
+            '3. Backend dependencies are installed\n' +
+            '4. Check Vercel function logs for details';
+          
+          if (error.response.data?.error) {
+            userMessage += `\n\nError: ${error.response.data.error}`;
+          }
+        } else if (serverMessage.includes('Database connection')) {
+          userMessage = error.response.data?.message || 'Database connection failed';
+        } else {
+          userMessage = `Server error: ${serverMessage}\n\nPlease check:\n` +
+            '1. Backend is running correctly\n' +
+            '2. Database connection is working\n' +
+            '3. Environment variables are set\n' +
+            '4. Check server logs for details';
+        }
+        
+        error.userMessage = userMessage;
+      }
+      
+      // For 503 errors (Service Unavailable - often database connection issues)
+      if (error.response.status === 503) {
+        const serviceMessage = error.response.data?.message || 'Service unavailable';
+        error.userMessage = serviceMessage;
+        
+        // Add troubleshooting if provided
+        if (error.response.data?.troubleshooting) {
+          error.userMessage += '\n\nTroubleshooting:\n' +
+            error.response.data.troubleshooting.map((step, i) => `${i + 1}. ${step}`).join('\n');
+        }
       }
     }
     
