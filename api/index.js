@@ -32,6 +32,23 @@ const getApp = () => {
       
       console.log('📁 Backend path exists:', backendPath);
       
+      // Check if backend node_modules exists
+      const backendNodeModules = path.join(backendPath, 'node_modules');
+      if (!fs.existsSync(backendNodeModules)) {
+        console.error('❌ Backend node_modules not found at:', backendNodeModules);
+        console.error('💡 Backend dependencies need to be installed!');
+        console.error('💡 Check Vercel build logs - installCommand should install backend dependencies');
+        throw new Error('Backend dependencies not installed. Ensure installCommand installs backend dependencies: cd backend && npm install');
+      }
+      
+      // Check if express is installed
+      const expressPath = path.join(backendNodeModules, 'express');
+      if (!fs.existsSync(expressPath)) {
+        console.error('❌ Express module not found in backend/node_modules');
+        console.error('💡 Backend dependencies are missing!');
+        throw new Error('Express module not found. Backend dependencies need to be installed.');
+      }
+      
       // Try to load the server
       console.log('📥 Loading backend/server.js...');
       
@@ -44,6 +61,8 @@ const getApp = () => {
       } catch (requireError) {
         console.error('❌ Error requiring server module:', requireError.message);
         console.error('Error stack:', requireError.stack);
+        console.error('💡 This usually means backend dependencies are not installed');
+        console.error('💡 Check that installCommand in vercel.json installs backend dependencies');
         throw requireError;
       }
       
