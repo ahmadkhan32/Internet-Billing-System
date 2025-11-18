@@ -170,7 +170,14 @@ app.get('/api/health', async (req, res) => {
       message: 'Server is running but database connection failed',
       database: 'disconnected',
       error: isDev ? error.message : 'Database connection error',
-      hint: 'Check environment variables: DB_HOST, DB_USER, DB_PASSWORD, DB_NAME'
+      hint: 'Check environment variables: DB_HOST, DB_USER, DB_PASSWORD, DB_NAME',
+      troubleshooting: [
+        'Verify database credentials are correct in Vercel environment variables',
+        'Check database is accessible from internet (not private network)',
+        'For Supabase: Verify project is active (not paused) and credentials are correct',
+        'Check database firewall allows connections from 0.0.0.0/0',
+        'Verify database is running and not paused'
+      ]
     });
   }
 });
@@ -293,10 +300,20 @@ app.get('/api/diagnose', async (req, res) => {
         issue: 'SSL/TLS connection issue',
         fix: 'SSL is automatically enabled for cloud databases. Verify your database supports SSL connections.'
       });
+    } else if (error.message && (error.message.includes('ENOTFOUND') || error.message.includes('getaddrinfo'))) {
+      diagnostics.recommendations.push({
+        priority: 'CRITICAL',
+        issue: 'DNS lookup failed - Cannot resolve database hostname (ENOTFOUND)',
+        errorDetails: error.message,
+        likelyCause: 'Supabase project is paused or hostname is incorrect',
+        fix: '1. Go to Supabase Dashboard (supabase.com/dashboard), 2. Check if project is paused and click "Restore", 3. Verify DB_HOST is correct (db.xxxxx.supabase.co), 4. Get fresh credentials from Supabase Dashboard if needed',
+        guide: 'See FIX_SUPABASE_ENOTFOUND_ERROR.md for detailed steps'
+      });
     } else if (missingVars.length === 0) {
       diagnostics.recommendations.push({
         priority: 'HIGH',
         issue: 'Database connection failed despite all variables being set',
+        errorDetails: error.message || 'Unknown error',
         fix: '1. Check database firewall allows 0.0.0.0/0, 2. Verify database is running, 3. Test connection locally, 4. Check Vercel function logs for details'
       });
     }
