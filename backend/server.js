@@ -363,15 +363,41 @@ app.get('/', (req, res) => {
 
 // 404 handler for API routes
 app.use('/api', (req, res) => {
-  res.status(404).json({ message: 'API route not found' });
+  res.status(404).json({ 
+    message: 'API route not found',
+    path: req.path,
+    method: req.method,
+    hint: 'Available API endpoints: /api/health, /api/auth/login, /api/auth/register, etc.',
+    availableRoutes: [
+      '/api/health',
+      '/api/auth/login',
+      '/api/auth/register',
+      '/api/auth/me',
+      '/api/customers',
+      '/api/billing',
+      '/api/payments'
+    ]
+  });
 });
 
-// 404 handler for all other routes
+// 404 handler for all other routes (non-API)
 app.use((req, res) => {
-  res.status(404).json({ 
-    message: 'Route not found',
-    hint: 'API endpoints are available under /api/*. Example: /api/health'
-  });
+  // Don't return 404 for frontend routes - let Vercel handle them
+  if (process.env.VERCEL && !req.path.startsWith('/api')) {
+    // In Vercel, frontend routes should be handled by rewrites
+    // Return a helpful message instead of 404
+    res.status(200).json({ 
+      message: 'Internet Billing System API',
+      note: 'This is a frontend route. The frontend should handle this route.',
+      apiEndpoint: '/api/health'
+    });
+  } else {
+    res.status(404).json({ 
+      message: 'Route not found',
+      path: req.path,
+      hint: 'API endpoints are available under /api/*. Example: /api/health'
+    });
+  }
 });
 
 // Serve frontend static files in production (for Railway deployment)
