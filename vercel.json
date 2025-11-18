@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "buildCommand": "npm install --include=dev --prefix backend && npm install --include=dev --prefix frontend && npm run build --prefix frontend",
-  "outputDirectory": "frontend/dist",
-  "installCommand": "npm install --include=dev --prefix backend && npm install --include=dev --prefix frontend",
   "framework": "vite",
+  "buildCommand": "cd frontend && npm install && npm run build",
+  "outputDirectory": "frontend/dist",
+  "installCommand": "cd frontend && npm install",
   "functions": {
     "api/index.js": {
       "maxDuration": 60,
