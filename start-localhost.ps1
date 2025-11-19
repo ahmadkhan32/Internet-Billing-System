@@ -1,100 +1,73 @@
-# PowerShell script to start both backend and frontend for localhost development
-# Usage: .\start-localhost.ps1
+# Start Frontend and Backend on Localhost
+# This script starts both servers for local development
 
 Write-Host "🚀 Starting Internet Billing System on Localhost..." -ForegroundColor Cyan
 Write-Host ""
 
-# Check if Node.js is installed
-try {
-    $nodeVersion = node --version
-    Write-Host "✅ Node.js version: $nodeVersion" -ForegroundColor Green
-} catch {
-    Write-Host "❌ Node.js is not installed!" -ForegroundColor Red
-    Write-Host "💡 Please install Node.js from https://nodejs.org/" -ForegroundColor Yellow
-    exit 1
-}
-
-# Kill existing processes on ports
-Write-Host "🔍 Checking for existing processes..." -ForegroundColor Yellow
-Write-Host ""
-
-# Kill port 8000 (backend)
-Write-Host "Checking port 8000 (backend)..." -ForegroundColor Yellow
-$backendProcess = netstat -ano | findstr ":8000"
-if ($backendProcess) {
-    Write-Host "⚠️  Port 8000 is in use. Killing process..." -ForegroundColor Yellow
-    & "$PSScriptRoot\backend\kill-port.ps1" 8000
-    Start-Sleep -Seconds 2
-} else {
-    Write-Host "✅ Port 8000 is available" -ForegroundColor Green
-}
-
-# Kill port 3001 (frontend)
-Write-Host "Checking port 3001 (frontend)..." -ForegroundColor Yellow
-$frontendProcess = netstat -ano | findstr ":3001"
-if ($frontendProcess) {
-    Write-Host "⚠️  Port 3001 is in use. Please close it manually." -ForegroundColor Yellow
-} else {
-    Write-Host "✅ Port 3001 is available" -ForegroundColor Green
-}
-
-Write-Host ""
-Write-Host "📦 Installing dependencies (if needed)..." -ForegroundColor Cyan
-Write-Host ""
-
-# Install backend dependencies
-if (-not (Test-Path "backend\node_modules")) {
-    Write-Host "Installing backend dependencies..." -ForegroundColor Yellow
-    Set-Location backend
-    npm install
-    Set-Location ..
-} else {
-    Write-Host "✅ Backend dependencies already installed" -ForegroundColor Green
-}
-
-# Install frontend dependencies
-if (-not (Test-Path "frontend\node_modules")) {
-    Write-Host "Installing frontend dependencies..." -ForegroundColor Yellow
-    Set-Location frontend
-    npm install
-    Set-Location ..
-} else {
-    Write-Host "✅ Frontend dependencies already installed" -ForegroundColor Green
-}
-
-Write-Host ""
-Write-Host "🚀 Starting servers..." -ForegroundColor Cyan
-Write-Host ""
-
 # Check if .env file exists
 if (-not (Test-Path "backend\.env")) {
-    Write-Host "⚠️  .env file not found in backend folder!" -ForegroundColor Yellow
-    Write-Host "💡 Creating .env from template..." -ForegroundColor Yellow
-    Copy-Item "backend\env.template" "backend\.env"
-    Write-Host "✅ .env file created. Please update it with your database credentials." -ForegroundColor Green
+    Write-Host "❌ backend/.env file not found!" -ForegroundColor Red
+    Write-Host "💡 Creating .env file..." -ForegroundColor Yellow
+    
+    $envContent = @"
+NODE_ENV=development
+PORT=8000
+VERCEL=0
+
+DB_DIALECT=postgres
+DB_HOST=db.qppdkzzmijjyoihzfdxw.supabase.co
+DB_PORT=6543
+DB_USER=postgres
+DB_PASSWORD=3oqj6vL2Tr5BZLaf
+DB_NAME=postgres
+DB_SSL=true
+DB_SSL_REJECT_UNAUTHORIZED=false
+
+JWT_SECRET=2dc998eb35cb110e2f5d8a076e9f40875cbd2fc403db53b8d593eb1460b1b3be
+JWT_EXPIRE=7d
+
+FRONTEND_URL=http://localhost:3001
+"@
+    
+    Set-Content -Path "backend\.env" -Value $envContent
+    Write-Host "✅ Created backend/.env file" -ForegroundColor Green
+    Write-Host ""
 }
 
-# Start backend in new window
-Write-Host "Starting backend server (port 8000)..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot\backend'; Write-Host '🔵 Backend Server (Port 8000)' -ForegroundColor Cyan; npm start"
+# Check Supabase connection
+Write-Host "📋 Checking Supabase project status..." -ForegroundColor Yellow
+Write-Host "⚠️  IMPORTANT: Make sure your Supabase project is ACTIVE (not paused)" -ForegroundColor Yellow
+Write-Host "   Go to: https://supabase.com/dashboard" -ForegroundColor White
+Write-Host "   If paused → Click 'Restore' or 'Resume'" -ForegroundColor White
+Write-Host ""
+
+# Start Backend
+Write-Host "🔧 Starting Backend Server..." -ForegroundColor Cyan
+Write-Host "   Backend will run on: http://localhost:8000" -ForegroundColor White
+Write-Host ""
+
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PWD\backend'; Write-Host '🔧 Starting Backend...' -ForegroundColor Cyan; npm start"
 
 # Wait a bit for backend to start
 Start-Sleep -Seconds 3
 
-# Start frontend in new window
-Write-Host "Starting frontend server (port 3001)..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot\frontend'; Write-Host '🟢 Frontend Server (Port 3001)' -ForegroundColor Green; npm run dev"
+# Start Frontend
+Write-Host "🌐 Starting Frontend Server..." -ForegroundColor Cyan
+Write-Host "   Frontend will run on: http://localhost:3001" -ForegroundColor White
+Write-Host ""
+
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PWD\frontend'; Write-Host '🌐 Starting Frontend...' -ForegroundColor Cyan; npm run dev"
 
 Write-Host ""
-Write-Host "✅ Servers are starting!" -ForegroundColor Green
+Write-Host "✅ Both servers are starting!" -ForegroundColor Green
 Write-Host ""
-Write-Host "📋 Access URLs:" -ForegroundColor Cyan
-Write-Host "   Frontend: http://localhost:3001" -ForegroundColor White
-Write-Host "   Backend:  http://localhost:8000" -ForegroundColor White
-Write-Host "   API Health: http://localhost:8000/api/health" -ForegroundColor White
+Write-Host "📋 Next Steps:" -ForegroundColor Yellow
+Write-Host "   1. Wait for backend to show: '✅ PostgreSQL connection established successfully'" -ForegroundColor White
+Write-Host "   2. Wait for frontend to show: 'Local: http://localhost:3001/'" -ForegroundColor White
+Write-Host "   3. Open browser: http://localhost:3001/login" -ForegroundColor White
+Write-Host "   4. Login with: admin@billing.com / admin123" -ForegroundColor White
 Write-Host ""
-Write-Host "💡 Two PowerShell windows will open - one for backend, one for frontend" -ForegroundColor Yellow
-Write-Host "💡 Press Ctrl+C in each window to stop the servers" -ForegroundColor Yellow
+Write-Host "⚠️  If you see database connection errors:" -ForegroundColor Yellow
+Write-Host "   - Check Supabase project is active (not paused)" -ForegroundColor White
+Write-Host "   - Verify backend/.env file has correct credentials" -ForegroundColor White
 Write-Host ""
-Write-Host "🎉 Happy coding!" -ForegroundColor Green
-

@@ -42,7 +42,13 @@ const getApiBaseUrl = () => {
     return '/api';
   }
   
-  // In development, default to localhost
+  // In development, default to localhost backend
+  // Check if we're on localhost
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:8000/api';
+  }
+  
+  // Fallback to localhost
   return 'http://localhost:8000/api';
 };
 

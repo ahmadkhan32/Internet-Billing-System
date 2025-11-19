@@ -37,9 +37,19 @@ const app = express();
 const PORT = process.env.PORT || 8000;
 
 // Middleware
+// Default localhost origins for development
+const defaultLocalhostOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:3001',
+  'http://127.0.0.1:3002'
+];
+
 const allowedOrigins = process.env.FRONTEND_URL 
-  ? [process.env.FRONTEND_URL] 
-  : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'];
+  ? [process.env.FRONTEND_URL, ...defaultLocalhostOrigins]
+  : defaultLocalhostOrigins;
 
 // Add Vercel URL to allowed origins if in Vercel environment
 if (process.env.VERCEL_URL) {
@@ -55,6 +65,14 @@ app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
+    
+    // In development, always allow localhost
+    if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
+      if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+        console.log('✅ CORS: Allowing localhost origin:', origin);
+        return callback(null, true);
+      }
+    }
     
     // In Vercel environment, allow all Vercel URLs (preview and production)
     if (process.env.VERCEL) {
@@ -79,6 +97,7 @@ app.use(cors({
     } else {
       // In development or Vercel, allow all origins
       if (process.env.NODE_ENV !== 'production' || process.env.VERCEL) {
+        console.log('✅ CORS: Allowing origin (development/Vercel):', origin);
         callback(null, true);
       } else {
         console.warn('⚠️  CORS: Origin not allowed:', origin);
