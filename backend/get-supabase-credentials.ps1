@@ -35,7 +35,7 @@ try {
     # Try to decode URL-encoded password if present
     if ($connectionString -match "postgresql://postgres:([^@]+)@([^:]+):(\d+)/(.+)") {
         $password = $matches[1]
-        $host = $matches[2]
+        $dbHost = $matches[2]  # Changed from $host (reserved variable)
         $port = $matches[3]
         $database = $matches[4]
         
@@ -49,7 +49,7 @@ try {
         
         Write-Host ""
         Write-Host "Extracted credentials:" -ForegroundColor Green
-        Write-Host "  Host: $host" -ForegroundColor White
+        Write-Host "  Host: $dbHost" -ForegroundColor White
         Write-Host "  Port: $port" -ForegroundColor White
         Write-Host "  User: postgres" -ForegroundColor White
         Write-Host "  Password: $($password.Length) characters" -ForegroundColor White
@@ -71,7 +71,7 @@ PORT=8000
 VERCEL=0
 
 DB_DIALECT=postgres
-DB_HOST=$host
+DB_HOST=$dbHost
 DB_PORT=$port
 DB_USER=postgres
 DB_PASSWORD=$password
