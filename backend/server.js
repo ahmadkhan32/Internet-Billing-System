@@ -161,6 +161,15 @@ if (process.env.VERCEL) {
 // Handle preflight OPTIONS requests explicitly
 app.options('*', cors());
 
+// Redirect /auth/* to /api/auth/* for backward compatibility
+app.use('/auth', (req, res, next) => {
+  // Redirect to /api/auth with the same path and query
+  const newPath = `/api/auth${req.path}`;
+  const query = req.url.split('?')[1];
+  const redirectUrl = query ? `${newPath}?${query}` : newPath;
+  res.redirect(308, redirectUrl);
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
