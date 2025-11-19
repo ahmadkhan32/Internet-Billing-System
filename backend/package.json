@@ -18,6 +18,8 @@
     "verify-credentials": "node verify-supabase-credentials.js",
     "check-hostname": "node check-hostname.js",
     "test-login": "node test-login.js",
+    "auto-check": "node auto-check-supabase.js",
+    "check-internet": "node check-internet-accessibility.js",
     "kill-port": "powershell -ExecutionPolicy Bypass -File kill-port.ps1 8000",
     "start": "node server.js",
     "dev": "nodemon server.js",
