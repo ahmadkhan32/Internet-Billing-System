@@ -30,20 +30,34 @@ if ([string]::IsNullOrWhiteSpace($connectionString)) {
 
 # Parse connection string
 # Format: postgresql://postgres:password@host:port/database
+# Also handles URL-encoded passwords
 try {
+    # Try to decode URL-encoded password if present
     if ($connectionString -match "postgresql://postgres:([^@]+)@([^:]+):(\d+)/(.+)") {
         $password = $matches[1]
         $host = $matches[2]
         $port = $matches[3]
         $database = $matches[4]
         
+        # Decode URL-encoded password
+        try {
+            $password = [System.Web.HttpUtility]::UrlDecode($password)
+        } catch {
+            # If URL decode fails, use original password
+            # This handles cases where password might already be decoded
+        }
+        
         Write-Host ""
         Write-Host "Extracted credentials:" -ForegroundColor Green
+        Write-Host "  Host: $host" -ForegroundColor White
         Write-Host "  Host: $host" -ForegroundColor White
         Write-Host "  Port: $port" -ForegroundColor White
         Write-Host "  User: postgres" -ForegroundColor White
         Write-Host "  Password: $($password.Length) characters" -ForegroundColor White
         Write-Host "  Database: $database" -ForegroundColor White
+        Write-Host ""
+        Write-Host "💡 TIP: Port 6543 (connection pooling) is recommended for better performance" -ForegroundColor Yellow
+        Write-Host "   Current port: $port" -ForegroundColor Gray
         Write-Host ""
         
         $confirm = Read-Host "Update .env file with these credentials? (y/n)"
@@ -66,22 +80,43 @@ DB_NAME=$database
 DB_SSL=true
 DB_SSL_REJECT_UNAUTHORIZED=false
 
+# Connection Pooling (recommended for better performance)
+# To use connection pooling, change DB_PORT to 6543
+# DB_PORT=6543
+
 JWT_SECRET=2dc998eb35cb110e2f5d8a076e9f40875cbd2fc403db53b8d593eb1460b1b3be
 JWT_EXPIRE=7d
 
 FRONTEND_URL=http://localhost:3001
 "@
             
-            $envContent | Out-File -FilePath $envPath -Encoding utf8 -NoNewline
+            # Use proper line endings for .env file
+            $envContent | Out-File -FilePath $envPath -Encoding utf8
             Write-Host ""
             Write-Host "[OK] .env file updated successfully!" -ForegroundColor Green
+            Write-Host ""
+            
+            # Suggest using connection pooling port
+            Write-Host "💡 TIP: For better performance, use port 6543 (connection pooling)" -ForegroundColor Yellow
+            Write-Host "   Update DB_PORT=6543 in .env file if you want to use connection pooling" -ForegroundColor Gray
+            Write-Host ""
+            
+            # Test connection
+            $testConnection = Read-Host "Test database connection now? (y/n)"
+            if ($testConnection -eq "y" -or $testConnection -eq "Y") {
+                Write-Host ""
+                Write-Host "Testing connection..." -ForegroundColor Cyan
+                node check-db.js
+            }
+            
             Write-Host ""
             Write-Host "Next steps:" -ForegroundColor Cyan
             Write-Host "1. Make sure Supabase project is active (not paused)" -ForegroundColor White
             Write-Host "2. Run migrations in Supabase SQL Editor:" -ForegroundColor White
             Write-Host "   - Go to SQL Editor in Supabase Dashboard" -ForegroundColor Gray
             Write-Host "   - Run: supabase/migrations/001_initial_schema.sql" -ForegroundColor Gray
-            Write-Host "3. Restart the server: npm start" -ForegroundColor White
+            Write-Host "3. Test connection: node check-db.js" -ForegroundColor White
+            Write-Host "4. Start the server: npm start" -ForegroundColor White
         } else {
             Write-Host "Cancelled." -ForegroundColor Yellow
         }
