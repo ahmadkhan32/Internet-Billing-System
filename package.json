@@ -12,7 +12,8 @@
     "start:backend": "cd backend && npm start",
     "start:frontend": "cd frontend && npm run dev",
     "check:db": "cd backend && npm run pre-start",
-    "setup:localhost": "powershell -ExecutionPolicy Bypass -File start-localhost.ps1"
+    "setup:localhost": "powershell -ExecutionPolicy Bypass -File start-localhost.ps1",
+    "fix:db": "powershell -ExecutionPolicy Bypass -File fix-database-now.ps1"
   },
   "keywords": [
     "billing",
