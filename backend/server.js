@@ -161,14 +161,9 @@ if (process.env.VERCEL) {
 // Handle preflight OPTIONS requests explicitly
 app.options('*', cors());
 
-// Redirect /auth/* to /api/auth/* for backward compatibility
-app.use('/auth', (req, res, next) => {
-  // Redirect to /api/auth with the same path and query
-  const newPath = `/api/auth${req.path}`;
-  const query = req.url.split('?')[1];
-  const redirectUrl = query ? `${newPath}?${query}` : newPath;
-  res.redirect(308, redirectUrl);
-});
+// Handle /auth/* routes (for backward compatibility - proxy to /api/auth/*)
+// This allows requests to /auth/login to work even if frontend doesn't use /api prefix
+app.use('/auth', authRoutes);
 
 // Routes
 app.use('/api/auth', authRoutes);
