@@ -449,7 +449,11 @@ if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
 
 // Export app for serverless functions (Vercel)
 // Only start server if not in serverless mode
-const isVercel = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+// Check if VERCEL is explicitly set to "1" or "true", not just any value
+// Also check if we're actually running in Vercel environment (not localhost)
+const isVercel = (process.env.VERCEL === '1' || process.env.VERCEL === 'true') || 
+                 (process.env.AWS_LAMBDA_FUNCTION_NAME) ||
+                 (process.env.VERCEL_URL && !process.env.VERCEL_URL.includes('localhost'));
 
 // Sync database and start server
 const startServer = async () => {
@@ -458,11 +462,19 @@ const startServer = async () => {
     // In local dev, allow server to start even if DB is not available
     if (!isVercel) {
       try {
-        await testConnection();
+        const connected = await testConnection();
+        if (!connected) {
+          console.warn('⚠️  Database connection failed during startup (local development)');
+          console.warn('💡 Server will start but database operations will fail');
+          console.warn('💡 Check your .env file and ensure database is running');
+          console.warn('💡 For Supabase: Verify DB_HOST, DB_USER, DB_PASSWORD, DB_NAME are set');
+        }
       } catch (dbError) {
         console.warn('⚠️  Database connection failed during startup (local development)');
         console.warn('💡 Server will start but database operations will fail');
-        console.warn('💡 Make sure MySQL is running and .env file is configured');
+        console.warn('💡 Error:', dbError.message);
+        console.warn('💡 Check your .env file and ensure database is accessible');
+        console.warn('💡 For Supabase: Verify connection credentials in .env file');
         // Don't crash in local dev - allow server to start
       }
     } else {
@@ -729,11 +741,31 @@ const startServer = async () => {
     // Start server only if not in serverless mode
     if (!isVercel) {
       const port = process.env.PORT || PORT;
-      app.listen(port, '0.0.0.0', () => {
+      
+      // Check if port is already in use
+      const server = app.listen(port, '0.0.0.0', () => {
         console.log(`🚀 Server running on port ${port}`);
         console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
         if (process.env.NODE_ENV === 'production') {
           console.log(`🌐 Frontend served from: ${path.join(__dirname, '../frontend/dist')}`);
+        }
+      });
+      
+      // Handle port already in use error
+      server.on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+          console.error(`❌ Port ${port} is already in use!`);
+          console.error('💡 Solutions:');
+          console.error(`   1. Kill the process using port ${port}:`);
+          console.error(`      Windows: npm run kill-port`);
+          console.error(`      Or: netstat -ano | findstr :${port}`);
+          console.error(`      Then: taskkill /PID <PID> /F`);
+          console.error(`   2. Use a different port: PORT=8001 npm start`);
+          console.error(`   3. Find and stop the other server process`);
+          process.exit(1);
+        } else {
+          console.error('❌ Server error:', err);
+          process.exit(1);
         }
       });
     } else {
