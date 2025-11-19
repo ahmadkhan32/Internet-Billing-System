@@ -14,7 +14,7 @@ VERCEL=0
 
 DB_DIALECT=postgres
 DB_HOST=db.qppdkzzmijjyoihzfdxw.supabase.co
-DB_PORT=5432
+DB_PORT=6543
 DB_USER=postgres
 DB_PASSWORD=3oqj6vL2Tr5BZLaf
 DB_NAME=postgres
