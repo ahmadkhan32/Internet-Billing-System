@@ -8,7 +8,11 @@
     "build": "npm install --include=dev --prefix backend && npm install --include=dev --prefix frontend && npm run build --prefix frontend",
     "install:all": "npm install --include=dev --prefix backend && npm install --include=dev --prefix frontend",
     "start": "cd backend && node server.js",
-    "dev": "cd backend && npm run dev"
+    "dev": "cd backend && npm run dev",
+    "start:backend": "cd backend && npm start",
+    "start:frontend": "cd frontend && npm run dev",
+    "check:db": "cd backend && npm run pre-start",
+    "setup:localhost": "powershell -ExecutionPolicy Bypass -File start-localhost.ps1"
   },
   "keywords": [
     "billing",
