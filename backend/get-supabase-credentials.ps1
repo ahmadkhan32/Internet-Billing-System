@@ -50,7 +50,6 @@ try {
         Write-Host ""
         Write-Host "Extracted credentials:" -ForegroundColor Green
         Write-Host "  Host: $host" -ForegroundColor White
-        Write-Host "  Host: $host" -ForegroundColor White
         Write-Host "  Port: $port" -ForegroundColor White
         Write-Host "  User: postgres" -ForegroundColor White
         Write-Host "  Password: $($password.Length) characters" -ForegroundColor White
