@@ -1,7 +1,23 @@
 // Comprehensive Database Connection Diagnostic Tool
 // Run this to identify the exact issue with your database connection
 
-require('dotenv').config({ path: './backend/.env' });
+const path = require('path');
+const fs = require('fs');
+
+// Find .env file - works from root or backend directory
+let envPath = './backend/.env';
+if (!fs.existsSync(envPath)) {
+  // Try from backend directory
+  envPath = './.env';
+  if (!fs.existsSync(envPath)) {
+    console.error('❌ Cannot find .env file!');
+    console.error('💡 Make sure you run this from project root or backend directory');
+    console.error('💡 Or create backend/.env file with database credentials');
+    process.exit(1);
+  }
+}
+
+require('dotenv').config({ path: envPath });
 const { Sequelize } = require('sequelize');
 const https = require('https');
 

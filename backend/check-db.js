@@ -1,22 +1,7 @@
-// Quick Connection Check - Run this to test your database connection
+// Quick Database Connection Check
+// Run this from backend directory: node check-db.js
 
-const path = require('path');
-const fs = require('fs');
-
-// Find .env file - works from root or backend directory
-let envPath = './backend/.env';
-if (!fs.existsSync(envPath)) {
-  // Try from backend directory
-  envPath = './.env';
-  if (!fs.existsSync(envPath)) {
-    console.error('❌ Cannot find .env file!');
-    console.error('💡 Make sure you run this from project root or backend directory');
-    console.error('💡 Or create backend/.env file with database credentials');
-    process.exit(1);
-  }
-}
-
-require('dotenv').config({ path: envPath });
+require('dotenv').config();
 const { Sequelize } = require('sequelize');
 
 console.log('🔍 Quick Database Connection Check\n');
@@ -47,7 +32,7 @@ Object.entries(vars).forEach(([key, value]) => {
 
 if (!allSet) {
   console.log('\n❌ Missing environment variables!');
-  console.log('💡 Make sure backend/.env file exists and has all required variables.\n');
+  console.log('💡 Make sure .env file exists in backend directory with all required variables.\n');
   process.exit(1);
 }
 
@@ -102,11 +87,11 @@ sequelize.authenticate()
       console.log('💡 Possible causes:');
       console.log('   1. Wrong DB_HOST value');
       console.log('   2. Network connectivity issue');
-      console.log('   3. Supabase project might be paused (even if dashboard says active)');
+      console.log('   3. Supabase project might be paused');
       console.log('\n🔧 Try:');
-      console.log('   1. Double-check DB_HOST in backend/.env');
+      console.log('   1. Double-check DB_HOST in .env file');
       console.log('   2. Try using port 6543 (connection pooling)');
-      console.log('   3. Restart Supabase project (pause and restore)');
+      console.log('   3. Check Supabase project status');
     } else if (error.message.includes('password') || error.message.includes('authentication')) {
       console.log('🔍 Issue: Authentication failed');
       console.log('💡 Wrong username or password');
@@ -114,18 +99,18 @@ sequelize.authenticate()
       console.log('   1. Go to Supabase Dashboard → Settings → Database');
       console.log('   2. Click "Reset database password"');
       console.log('   3. Copy new password');
-      console.log('   4. Update DB_PASSWORD in backend/.env');
+      console.log('   4. Update DB_PASSWORD in .env file');
     } else if (error.message.includes('timeout') || error.message.includes('ECONNREFUSED')) {
       console.log('🔍 Issue: Connection timeout or refused');
       console.log('💡 Database is not accessible');
       console.log('\n🔧 Fix:');
       console.log('   1. Try using port 6543 instead of 5432');
-      console.log('   2. Update DB_PORT=6543 in backend/.env');
-      console.log('   3. Check Supabase project is truly active');
+      console.log('   2. Update DB_PORT=6543 in .env file');
+      console.log('   3. Check Supabase project is active');
     } else if (error.message.includes('SSL')) {
       console.log('🔍 Issue: SSL/TLS configuration');
       console.log('\n🔧 Fix:');
-      console.log('   Ensure in backend/.env:');
+      console.log('   Ensure in .env file:');
       console.log('   DB_SSL=true');
       console.log('   DB_SSL_REJECT_UNAUTHORIZED=false');
     } else {
