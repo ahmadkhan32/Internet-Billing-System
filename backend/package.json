@@ -15,6 +15,7 @@
     "check-connection": "node check-db.js",
     "auto-restore": "node auto-restore-supabase.js",
     "pre-start": "node pre-start-check.js",
+    "verify-credentials": "node verify-supabase-credentials.js",
     "kill-port": "powershell -ExecutionPolicy Bypass -File kill-port.ps1 8000",
     "start": "node server.js",
     "dev": "nodemon server.js",
