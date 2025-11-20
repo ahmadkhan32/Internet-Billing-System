@@ -107,7 +107,7 @@ const login = async (req, res) => {
         hasDB_USER: !!process.env.DB_USER,
         hasDB_PASSWORD: !!process.env.DB_PASSWORD,
         hasDB_NAME: !!process.env.DB_NAME,
-        DB_DIALECT: process.env.DB_DIALECT || 'mysql',
+        DB_DIALECT: process.env.DB_DIALECT || 'postgres',
         VERCEL: !!process.env.VERCEL
       });
       

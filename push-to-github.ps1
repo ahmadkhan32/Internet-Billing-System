@@ -1,44 +1,63 @@
-# Script to push project to GitHub
-# Usage: .\push-to-github.ps1 -RepoUrl "https://github.com/username/repo-name.git"
+# Push Project to GitHub
+# Run: powershell -ExecutionPolicy Bypass -File push-to-github.ps1
 
-param(
-    [Parameter(Mandatory=$true)]
-    [string]$RepoUrl
-)
+Write-Host "🚀 Pushing Project to GitHub" -ForegroundColor Cyan
+Write-Host ""
 
-Write-Host "🚀 Pushing project to GitHub..." -ForegroundColor Green
-
-# Check if remote already exists
-$remoteExists = git remote get-url origin 2>$null
-if ($remoteExists) {
-    Write-Host "⚠️  Remote 'origin' already exists: $remoteExists" -ForegroundColor Yellow
-    $overwrite = Read-Host "Do you want to update it? (y/n)"
-    if ($overwrite -eq 'y' -or $overwrite -eq 'Y') {
-        git remote set-url origin $RepoUrl
-        Write-Host "✅ Remote URL updated" -ForegroundColor Green
-    } else {
-        Write-Host "❌ Aborted. Using existing remote." -ForegroundColor Red
-        exit
-    }
-} else {
-    git remote add origin $RepoUrl
-    Write-Host "✅ Remote 'origin' added" -ForegroundColor Green
+# Check if git is initialized
+if (-not (Test-Path ".git")) {
+    Write-Host "❌ Git not initialized!" -ForegroundColor Red
+    Write-Host "💡 Run: git init" -ForegroundColor Yellow
+    exit 1
 }
 
-# Ensure we're on main branch
-git branch -M main
+# Check if .env is in .gitignore
+$gitignore = Get-Content ".gitignore" -ErrorAction SilentlyContinue
+if ($gitignore -notcontains ".env") {
+    Write-Host "⚠️  .env not in .gitignore - adding it..." -ForegroundColor Yellow
+    Add-Content ".gitignore" "`n.env`n.env.local`n*.env"
+    Write-Host "✅ Added .env to .gitignore" -ForegroundColor Green
+}
 
-# Push to GitHub
-Write-Host "📤 Pushing to GitHub..." -ForegroundColor Cyan
-git push -u origin main
+# Check current status
+Write-Host "📋 Checking git status..." -ForegroundColor Yellow
+git status
+
+Write-Host ""
+Write-Host "📦 Staging all changes..." -ForegroundColor Yellow
+git add .
+
+Write-Host ""
+Write-Host "💾 Committing changes..." -ForegroundColor Yellow
+$commitMessage = "Remove MySQL, configure Supabase only, add diagnostic scripts and deployment guides"
+git commit -m $commitMessage
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "⚠️  No changes to commit or commit failed" -ForegroundColor Yellow
+} else {
+    Write-Host "✅ Changes committed" -ForegroundColor Green
+}
+
+Write-Host ""
+Write-Host "📤 Pushing to GitHub..." -ForegroundColor Yellow
+git push origin main
 
 if ($LASTEXITCODE -eq 0) {
-    Write-Host "✅ Successfully pushed to GitHub!" -ForegroundColor Green
-    Write-Host "🌐 Repository URL: $RepoUrl" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Green
+    Write-Host "✅ SUCCESS! Project pushed to GitHub" -ForegroundColor Green
+    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "📋 Next Steps:" -ForegroundColor Cyan
+    Write-Host "   1. Go to: https://vercel.com" -ForegroundColor White
+    Write-Host "   2. Import your GitHub repository" -ForegroundColor White
+    Write-Host "   3. Set environment variables (see DEPLOY_TO_GITHUB_AND_VERCEL.md)" -ForegroundColor White
+    Write-Host "   4. Deploy!" -ForegroundColor White
+    Write-Host ""
 } else {
-    Write-Host "❌ Push failed. Please check:" -ForegroundColor Red
-    Write-Host "   1. Repository exists on GitHub" -ForegroundColor Yellow
-    Write-Host "   2. You have access to the repository" -ForegroundColor Yellow
-    Write-Host "   3. You're authenticated (username/password or token)" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "❌ Push failed!" -ForegroundColor Red
+    Write-Host "💡 Check your git remote: git remote -v" -ForegroundColor Yellow
+    Write-Host "💡 Or set remote: git remote add origin https://github.com/your-username/your-repo.git" -ForegroundColor Yellow
+    Write-Host ""
 }
-

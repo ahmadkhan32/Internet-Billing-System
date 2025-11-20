@@ -751,7 +751,7 @@ const startServer = async () => {
         
         // Check if it's the "Too many keys" error
         if (rbacError.message && rbacError.message.includes('Too many keys')) {
-          console.error('\n🔧 Detected "Too many keys" error - this is a MySQL index limit issue.');
+          console.error('\n🔧 Database error detected.');
           console.error('💡 Solution: Run the following command to fix the role_permissions table:');
           console.error('   npm run fix:rbac');
           console.error('   OR: cd backend && node utils/fixRolePermissionsTable.js');
@@ -766,7 +766,7 @@ const startServer = async () => {
     } catch (defaultDataError) {
       console.error('❌ Error creating default data:', defaultDataError.message);
       console.warn('⚠️  Server will start but default data may not be created');
-      console.warn('💡 Make sure MySQL is running and database is accessible');
+      console.warn('💡 Make sure Supabase database is accessible and project is active');
       console.warn('💡 You can create default data later by running: npm run init-db');
     }
 
